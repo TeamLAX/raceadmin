@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>B2V Admin | Team LAX 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow+Condensed:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #1a1108;
+      --surface: #2a1c0e;
+      --surface2: #3a2816;
+      --border: #4a3520;
+      --accent: #f59e0b;
+      --accent-dim: #b87308;
+      --text: #f5f0e8;
+      --text-dim: #a89880;
+      --green: #22c55e;
+      --red: #ef4444;
+      --radius: 10px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      font-family: 'Barlow Condensed', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── PIN Gate ── */
+    .pin-gate {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .pin-gate h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .pin-gate .subtitle {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+    .pin-input {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'Oswald', sans-serif;
+      font-size: 2rem;
+      text-align: center;
+      letter-spacing: 0.5em;
+      padding: 0.8rem 1.5rem;
+      width: 200px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .pin-input:focus { border-color: var(--accent); }
+    .pin-input.error { border-color: var(--red); animation: shake 0.4s; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      75% { transform: translateX(8px); }
+    }
+    .pin-btn {
+      margin-top: 1.5rem;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0.8rem 2.5rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .pin-btn:active { background: var(--accent-dim); }
+
+    /* ── Admin Shell ── */
+    .admin-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .admin-header h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .admin-header .sync-status {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .admin-header .sync-status.syncing { color: var(--accent); }
+    .admin-header .sync-status.error { color: var(--red); }
+
+    /* ── Runner List ── */
+    .runner-list {
+      padding: 0.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-bottom: 100px;
+    }
+
+    /* ── Runner Card (collapsed) ── */
+    .runner-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .runner-card.active-runner { border-color: var(--green); }
+    .runner-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .runner-card-header .leg-badge {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--bg);
+      background: var(--accent);
+      border-radius: 4px;
+      padding: 2px 8px;
+      flex-shrink: 0;
+    }
+    .runner-card.active-runner .leg-badge { background: var(--green); }
+    .runner-card-header .runner-summary {
+      flex: 1;
+      overflow: hidden;
+    }
+    .runner-card-header .runner-summary .name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .runner-card-header .runner-summary .name.empty { color: var(--text-dim); font-style: italic; }
+    .runner-card-header .runner-summary .meta {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+    .runner-card-header .chevron {
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .runner-card.open .chevron { transform: rotate(180deg); }
+    .runner-card-header .active-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: pulse-dot 1.4s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── Runner Card (expanded) ── */
+    .runner-card-body {
+      display: none;
+      padding: 0 12px 14px;
+    }
+    .runner-card.open .runner-card-body { display: block; }
+
+    .field-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .field label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-bottom: 3px;
+    }
+    .field input, .field select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.9rem;
+      padding: 8px 10px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--text-dim); opacity: 0.5; }
+
+    .actions-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-save {
+      flex: 1;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-save:active { background: var(--accent-dim); }
+    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-save.saved { background: var(--green); }
+
+    .btn-set-active {
+      background: transparent;
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-radius: 6px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-set-active:active { background: var(--green); color: var(--bg); }
+    .btn-set-active.is-active {
+      background: var(--green);
+      color: var(--bg);
+      pointer-events: none;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 20px;
+      font-size: 0.85rem;
+      z-index: 200;
+      transition: transform 0.3s;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--green); color: var(--green); }
+    .toast.error { border-color: var(--red); color: var(--red); }
+  </style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONFIG — Replace with your deployed Apps Script URL
+// ═══════════════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbwdqzNUoNggKOureM3E7ZPYy5yAgnbLE-37strq_4F7OnZmdqarZ1riWR50MbIb0C_F/exec';
+// ═══════════════════════════════════════════════════
+
+let PIN = '';
+let runners = [];
+let openCard = null;
+
+function showToast(msg, type = 'success', duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.className = 'toast', duration);
+}
+
+// ── PIN Gate ──
+function renderPinGate(error = false) {
+  document.getElementById('app').innerHTML = `
+    <div class="pin-gate">
+      <h1>B2V Admin</h1>
+      <div class="subtitle">Team LAX 2026</div>
+      <input type="password" inputmode="numeric" class="pin-input ${error ? 'error' : ''}" 
+             id="pinInput" maxlength="10" placeholder="• • • •" autofocus />
+      <button class="pin-btn" onclick="submitPin()">Enter</button>
+    </div>`;
+  
+  document.getElementById('pinInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitPin();
+  });
+}
+
+async function submitPin() {
+  PIN = document.getElementById('pinInput').value.trim();
+  if (!PIN) { renderPinGate(true); return; }
+
+  // Test PIN by attempting to load data
+  try {
+    const res = await fetch(API_URL + '?t=' + Date.now());
+    const data = await res.json();
+    if (data.status === 'ok') {
+      runners = data.runners;
+      renderAdmin();
+    } else {
+      renderPinGate(true);
+    }
+  } catch (err) {
+    // If API not configured yet, show admin with empty data for preview
+    if (API_URL === 'YOUR_APPS_SCRIPT_URL') {
+      runners = Array.from({ length: 20 }, (_, i) => ({
+        leg: i + 1, name: '', photo: '', distance: '', difficulty: 5,
+        time: '', start: '', years: '', active: i === 0
+      }));
+      renderAdmin();
+      showToast('Preview mode — configure API_URL', 'error', 4000);
+    } else {
+      showToast('Connection error', 'error');
+      renderPinGate(true);
+    }
+  }
+}
+
+// ── Admin Panel ──
+function renderAdmin() {
+  const activeLeg = runners.find(r => r.active);
+  
+  document.getElementById('app').innerHTML = `
+    <div class="admin-header">
+      <h1>B2V Admin — Team LAX 2026</h1>
+      <div class="sync-status" id="syncStatus">
+        ${activeLeg ? '● Leg ' + activeLeg.leg + ' running' : 'No active runner'}
+      </div>
+    </div>
+    <div class="runner-list" id="runnerList">
+      ${runners.map(r => renderRunnerCard(r)).join('')}
+    </div>`;
+}
+
+function renderRunnerCard(r) {
+  const isOpen = openCard === r.leg;
+  const isActive = r.active;
+  const nameDisplay = r.name || 'Unassigned';
+  const metaParts = [];
+  if (r.distance) metaParts.push(r.distance);
+  if (r.time) metaParts.push(r.time);
+  if (r.years) metaParts.push(r.years + ' yrs');
+  const metaStr = metaParts.length ? metaParts.join(' · ') : 'No data';
+
+  return `
+  <div class="runner-card ${isOpen ? 'open' : ''} ${isActive ? 'active-runner' : ''}" id="card-${r.leg}">
+    <div class="runner-card-header" onclick="toggleCard(${r.leg})">
+      <div class="leg-badge">LEG ${r.leg}</div>
+      ${isActive ? '<div class="active-dot"></div>' : ''}
+      <div class="runner-summary">
+        <div class="name ${r.name ? '' : 'empty'}">${nameDisplay}</div>
+        <div class="meta">${metaStr}</div>
+      </div>
+      <div class="chevron">▾</div>
+    </div>
+    <div class="runner-card-body">
+      <div class="field-row">
+        <div class="field">
+          <label>Runner Name</label>
+          <input type="text" id="name-${r.leg}" value="${esc(r.name)}" placeholder="Full name" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Photo URL</label>
+          <input type="url" id="photo-${r.leg}" value="${esc(r.photo)}" placeholder="https://..." />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Distance</label>
+          <input type="text" id="distance-${r.leg}" value="${esc(r.distance)}" placeholder="e.g. 5.2 mi" />
+        </div>
+        <div class="field">
+          <label>Difficulty (1–10)</label>
+          <input type="number" id="difficulty-${r.leg}" value="${r.difficulty}" min="1" max="10" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Run Time</label>
+          <input type="text" id="time-${r.leg}" value="${esc(r.time)}" placeholder="e.g. 42:15" />
+        </div>
+        <div class="field">
+          <label>Start Time</label>
+          <input type="text" id="start-${r.leg}" value="${esc(r.start)}" placeholder="e.g. 3:45 PM PDT" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Years of Service</label>
+          <input type="text" id="years-${r.leg}" value="${esc(r.years)}" placeholder="e.g. 12" />
+        </div>
+      </div>
+      <div class="actions-row">
+        <button class="btn-save" id="save-${r.leg}" onclick="saveRunner(${r.leg})">Save Leg ${r.leg}</button>
+        <button class="btn-set-active ${isActive ? 'is-active' : ''}" onclick="setActive(${r.leg})">
+          ${isActive ? '● Running' : 'Set Active'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function toggleCard(leg) {
+  openCard = openCard === leg ? null : leg;
+  renderAdmin();
+  if (openCard) {
+    setTimeout(() => {
+      document.getElementById('card-' + leg)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+  }
+}
+
+async function saveRunner(leg) {
+  const btn = document.getElementById('save-' + leg);
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  
+  const payload = {
+    pin: PIN,
+    leg: leg,
+    name:       document.getElementById('name-' + leg).value,
+    photo:      document.getElementById('photo-' + leg).value,
+    distance:   document.getElementById('distance-' + leg).value,
+    difficulty: parseInt(document.getElementById('difficulty-' + leg).value) || 5,
+    time:       document.getElementById('time-' + leg).value,
+    start:      document.getElementById('start-' + leg).value,
+    years:      document.getElementById('years-' + leg).value
+  };
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      mode: 'no-cors'
+    });
+    
+    // Update local state
+    const runner = runners.find(r => r.leg === leg);
+    if (runner) {
+      runner.name = payload.name;
+      runner.photo = payload.photo;
+      runner.distance = payload.distance;
+      runner.difficulty = payload.difficulty;
+      runner.time = payload.time;
+      runner.start = payload.start;
+      runner.years = payload.years;
+    }
+    
+    btn.textContent = 'Saved ✓';
+    btn.classList.add('saved');
+    showToast('Leg ' + leg + ' saved');
+    
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = 'Save Leg ' + leg;
+      btn.classList.remove('saved');
+      renderAdmin();
+    }, 1500);
+    
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Save Leg ' + leg;
+    showToast('Save failed — ' + err.message, 'error');
+  }
+}
+
+async function setActive(leg) {
+  const payload = {
+    pin: PIN,
+    leg: leg,
+    setActive: true
+  };
+
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      mode: 'no-cors'
+    });
+    
+    // Update local state
+    runners.forEach(r => r.active = false);
+    const runner = runners.find(r => r.leg === leg);
+    if (runner) runner.active = true;
+    
+    showToast('Leg ' + leg + ' is now active');
+    renderAdmin();
+    
+  } catch (err) {
+    showToast('Failed to set active — ' + err.message, 'error');
+  }
+}
+
+// ── Init ──
+renderPinGate();
+</script>
+</body>
+</html>
