@@ -271,6 +271,62 @@
       pointer-events: none;
     }
 
+    /* ── Photo Upload ── */
+    .photo-upload-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .photo-preview {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      overflow: hidden;
+      flex-shrink: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .photo-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .no-photo {
+      font-size: 0.55rem;
+      color: var(--text-dim);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .photo-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .btn-photo {
+      display: block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.8rem;
+      padding: 8px 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .btn-photo:active { border-color: var(--accent); }
+    .photo-status {
+      font-size: 0.65rem;
+      color: var(--accent);
+    }
+
     /* ── Toast ── */
     .toast {
       position: fixed;
@@ -303,7 +359,7 @@
 // ═══════════════════════════════════════════════════
 // CONFIG — Replace with your deployed Apps Script URL
 // ═══════════════════════════════════════════════════
-const API_URL = 'https://script.google.com/macros/s/AKfycbyErHDQvFc1PCVYDmSF9Oj21pYHNoiZ4TB2TUaxd_t6dinFcSyWwi4JY1nruXKMo0-p/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbw5Swv4hFQaYEguLjt2Xy-jPBxYB0LUV56V6AqRuL0B_DnLkY4WCO1cBjR8mHEX5mp0/exec';
 // ═══════════════════════════════════════════════════
 
 let PIN = '';
@@ -469,11 +525,21 @@ function renderRunnerCard(r) {
           <input type="text" id="name-${r.leg}" value="${esc(r.name)}" placeholder="Full name" />
         </div>
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label>Photo URL</label>
-          <input type="url" id="photo-${r.leg}" value="${esc(r.photo)}" placeholder="https://..." />
+      <div class="photo-upload-row">
+        <div class="photo-preview" id="preview-${r.leg}">
+          ${r.photo ? '<img src="' + esc(r.photo) + '" alt="Runner photo" />' : '<div class="no-photo">No Photo</div>'}
         </div>
+        <div class="photo-buttons">
+          <label class="btn-photo" for="camera-${r.leg}">📷 Take Photo</label>
+          <input type="file" accept="image/*" capture="environment" id="camera-${r.leg}" 
+                 onchange="handlePhoto(${r.leg}, this)" style="display:none" />
+          <label class="btn-photo" for="gallery-${r.leg}">🖼 Choose Photo</label>
+          <input type="file" accept="image/*" id="gallery-${r.leg}" 
+                 onchange="handlePhoto(${r.leg}, this)" style="display:none" />
+          <div class="photo-status" id="photo-status-${r.leg}"></div>
+        </div>
+        <input type="hidden" id="photo-${r.leg}" value="${esc(r.photo)}" />
+        <input type="hidden" id="photodata-${r.leg}" value="" />
       </div>
       <div class="field-row">
         <div class="field">
@@ -526,10 +592,48 @@ function toggleCard(leg) {
   }
 }
 
+function handlePhoto(leg, input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  const status = document.getElementById('photo-status-' + leg);
+  status.textContent = 'Processing...';
+  
+  // Resize image before converting to base64 (keep under 1MB for Apps Script)
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX = 600; // max dimension
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > MAX) { h = h * MAX / w; w = MAX; } }
+      else { if (h > MAX) { w = w * MAX / h; h = MAX; } }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      
+      // Update preview
+      document.getElementById('preview-' + leg).innerHTML = 
+        '<img src="' + dataUrl + '" alt="Preview" />';
+      
+      // Store base64 for upload on save
+      document.getElementById('photodata-' + leg).value = dataUrl;
+      status.textContent = 'Ready to upload on save';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 async function saveRunner(leg) {
   const btn = document.getElementById('save-' + leg);
   btn.disabled = true;
   btn.textContent = 'Saving...';
+  
+  const photoData = document.getElementById('photodata-' + leg).value;
   
   const payload = {
     pin: PIN,
@@ -542,6 +646,12 @@ async function saveRunner(leg) {
     start:      document.getElementById('start-' + leg).value,
     years:      document.getElementById('years-' + leg).value
   };
+  
+  // Include photo data if a new photo was selected
+  if (photoData) {
+    payload.photoData = photoData;
+    btn.textContent = 'Uploading photo...';
+  }
 
   try {
     const result = await postJSON(payload);
@@ -558,13 +668,22 @@ async function saveRunner(leg) {
     const runner = runners.find(r => r.leg === leg);
     if (runner) {
       runner.name = payload.name;
-      runner.photo = payload.photo;
+      // If server returned a new photo URL (from upload), use it
+      if (result.photoUrl) {
+        runner.photo = result.photoUrl;
+      } else {
+        runner.photo = payload.photo;
+      }
       runner.distance = payload.distance;
       runner.difficulty = payload.difficulty;
       runner.time = payload.time;
       runner.start = payload.start;
       runner.years = payload.years;
     }
+    
+    // Clear the pending photo data
+    const pdEl = document.getElementById('photodata-' + leg);
+    if (pdEl) pdEl.value = '';
     
     btn.textContent = 'Saved ✓';
     btn.classList.add('saved');
