@@ -2,635 +2,738 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Baker-to-Vegas | Team LAX 2026</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400..900&family=Lexend+Deca:wght@100..900&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>B2V Admin | Team LAX 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow+Condensed:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --side-margin: 2.5rem;
-      --grid-cols: 5;
-      --card-gap: 10px;
+      --bg: #1a1108;
+      --surface: #2a1c0e;
+      --surface2: #3a2816;
+      --border: #4a3520;
+      --accent: #f59e0b;
+      --accent-dim: #b87308;
+      --text: #f5f0e8;
+      --text-dim: #a89880;
+      --green: #22c55e;
+      --red: #ef4444;
+      --radius: 10px;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      height: 100%;
-      overflow: hidden;
-      font-family: 'Lexend Deca', sans-serif;
-      background: linear-gradient(135deg, #3b2416 0%, #7a3a12 50%, #2f1b13 100%);
-      color: #fff;
-    }
-    h1, .leg-label { font-family: 'Gabarito', sans-serif; }
-
-    #app {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
+      font-family: 'Barlow Condensed', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* ── Header ── */
-    .header {
-      padding: 2rem var(--side-margin) 1rem;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 2rem;
-      align-items: flex-end;
-      flex-shrink: 0;
-    }
-    .header-info { flex: 1; min-width: 260px; }
-    .header h1 {
-      font-size: 2.6rem;
-      font-weight: 700;
-      line-height: 1.1;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-    }
-    .header h1 span { color: #f59e0b; }
-    .captain {
-      margin-top: 0.5rem;
-      font-size: 1.1rem;
-      font-weight: 300;
-      color: #fbbf24;
-      letter-spacing: 0.04em;
-    }
-
-    /* Bottom cards wrapper — scales both cards together */
-    .bottom-cards-wrap {
-      margin: 0 var(--side-margin);
-      flex-shrink: 0;
-      transform: scale(1.5);
-      transform-origin: bottom left;
-      margin-bottom: 20px;
-      width: fit-content;
-    }
-
-    /* Total Run Time card — matches active-panel style */
-    .total-time-card {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px;
-      padding: 1.2rem 1.6rem;
-      width: fit-content;
-      backdrop-filter: blur(6px);
-      margin-bottom: 20px;
-    }
-    .total-time-card .total-label {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: #fdba74;
-      margin-bottom: 0.25rem;
-    }
-    .total-time-card .total-value {
-      font-family: 'Gabarito', sans-serif;
-      font-size: 1.4rem;
-      font-weight: 700;
-      line-height: 1.1;
-    }
-
-    /* Active runner panel — left-aligned above cards */
-    .active-panel {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px;
-      padding: 1.2rem 1.6rem;
-      width: fit-content;
-      backdrop-filter: blur(6px);
-      display: flex;
-      gap: 14px;
-      align-items: stretch;
-    }
-    .active-info {
-      display: flex;
-      flex-direction: column;
-    }
-    .active-panel .label {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: #fdba74;
-      margin-bottom: 0.25rem;
-    }
-    .active-panel .active-name {
-      font-family: 'Gabarito', sans-serif;
-      font-size: 1.4rem;
-      font-weight: 700;
-      line-height: 1.1;
-    }
-    .active-panel .active-leg {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #fdba74;
-      margin-top: 2px;
-    }
-    .active-panel .start-time { font-size: 0.7rem; color: rgba(255,255,255,0.6); margin-top: 4px; }
-    .active-stats {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      margin-top: auto;
-    }
-    .active-stats .stat-box { text-align: center; }
-    .active-stats .stat-label {
-      font-size: 0.5rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: rgba(255,255,255,0.5);
-      margin-bottom: 2px;
-    }
-    .active-stats .stat-value {
-      background: rgba(255,255,255,0.12);
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.65rem;
-      padding: 2px 5px;
-      border-radius: 3px;
-    }
-    .active-stats .gauge-wrap {
-      flex-shrink: 0;
-      margin-left: -3px;
-    }
-    .active-stats .gauge-bar {
-      width: 5px;
-      height: 28px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 3px;
-      overflow: hidden;
-      position: relative;
-    }
-    .active-stats .gauge-fill {
-      position: absolute;
-      bottom: 0;
-      width: 100%;
-      border-radius: 3px;
-    }
-    .active-photo-col {
+    /* ── PIN Gate ── */
+    .pin-gate {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
+      min-height: 100vh;
+      padding: 2rem;
     }
-    .active-photo {
-      width: 64px;
-      height: 64px;
-      border-radius: 6px;
-      object-fit: cover;
-      border: 2px solid rgba(255,255,255,0.4);
-      display: block;
+    .pin-gate h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
     }
-    .active-badge-row {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      margin-top: 4px;
+    .pin-gate .subtitle {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
     }
-    .active-badge-row .badge-icon { width: 12px; height: 12px; flex-shrink: 0; }
-    .active-badge-row .badge-years { font-size: 0.55rem; color: rgba(255,255,255,0.55); white-space: nowrap; }
-    .pulse-dot {
-      display: inline-block;
-      width: 8px; height: 8px;
-      background: #22c55e;
-      border-radius: 50%;
-      margin-right: 6px;
-      animation: pulse 1.4s infinite;
+    .pin-input {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'Oswald', sans-serif;
+      font-size: 2rem;
+      text-align: center;
+      letter-spacing: 0.5em;
+      padding: 0.8rem 1.5rem;
+      width: 200px;
+      outline: none;
+      transition: border-color 0.2s;
     }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.7); }
+    .pin-input:focus { border-color: var(--accent); }
+    .pin-input.error { border-color: var(--red); animation: shake 0.4s; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      75% { transform: translateX(8px); }
     }
+    .pin-btn {
+      margin-top: 1.5rem;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0.8rem 2.5rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .pin-btn:active { background: var(--accent-dim); }
 
-    /* ── Grid carousel area — pinned to bottom ── */
-    .grid-viewport {
-      padding: 0 var(--side-margin);
-      margin-bottom: 30px;
-      overflow: hidden;
-      flex-shrink: 0;
+    /* ── Admin Shell ── */
+    .admin-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
-    .grid-track {
-      display: grid;
-      grid-template-columns: repeat(var(--grid-cols), 1fr);
-      gap: var(--card-gap);
-      transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+    .admin-header h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
+    .admin-header .sync-status {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .admin-header .sync-status.syncing { color: var(--accent); }
+    .admin-header .sync-status.error { color: var(--red); }
 
-    /* ── Card ── */
-    .card {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 10px;
-      padding: 10px;
+    /* ── Runner List ── */
+    .runner-list {
+      padding: 0.8rem;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      transition: background 0.2s;
+      padding-bottom: 100px;
     }
-    .card:hover { background: rgba(255,255,255,0.12); }
 
-    /* Card top: photo left, leg/name right */
-    .card-top {
+    /* ── Runner Card (collapsed) ── */
+    .runner-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .runner-card.active-runner { border-color: var(--green); }
+    .runner-card-header {
       display: flex;
+      align-items: center;
       gap: 10px;
-      align-items: flex-start;
+      padding: 10px 12px;
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
     }
-    .card-photo-col {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    .runner-card-header .leg-badge {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--bg);
+      background: var(--accent);
+      border-radius: 4px;
+      padding: 2px 8px;
       flex-shrink: 0;
     }
-    .card-photo {
-      width: 56px;
-      height: 56px;
-      border-radius: 6px;
-      object-fit: cover;
-      border: 2px solid rgba(255,255,255,0.4);
-      display: block;
-    }
-    /* Badge + years row beneath photo */
-    .card-badge-row {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      margin-top: 4px;
-    }
-    .badge-icon {
-      width: 12px;
-      height: 12px;
-      flex-shrink: 0;
-    }
-    .badge-years {
-      font-size: 0.6rem;
-      color: rgba(255,255,255,0.55);
-      white-space: nowrap;
-    }
-
-    /* Identity: leg at top, name at bottom — spans photo height */
-    .card-identity {
+    .runner-card.active-runner .leg-badge { background: var(--green); }
+    .runner-card-header .runner-summary {
       flex: 1;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      height: 56px; /* match photo */
     }
-    .card-leg {
-      font-family: 'Gabarito', sans-serif;
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #fdba74;
-      line-height: 1;
-    }
-    .card-name {
-      font-family: 'Gabarito', sans-serif;
-      font-weight: 700;
-      font-size: 1.15rem;
+    .runner-card-header .runner-summary .name {
+      font-weight: 600;
+      font-size: 0.95rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      line-height: 1;
+    }
+    .runner-card-header .runner-summary .name.empty { color: var(--text-dim); font-style: italic; }
+    .runner-card-header .runner-summary .meta {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+    .runner-card-header .chevron {
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .runner-card.open .chevron { transform: rotate(180deg); }
+    .runner-card-header .active-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: pulse-dot 1.4s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
     }
 
-    /* ── Stats row ── */
-    .card-stats {
+    /* ── Runner Card (expanded) ── */
+    .runner-card-body {
+      display: none;
+      padding: 0 12px 14px;
+    }
+    .runner-card.open .runner-card-body { display: block; }
+
+    .field-row {
       display: flex;
-      align-items: center;
-      gap: 6px;
+      gap: 8px;
+      margin-bottom: 8px;
     }
-    .stat-box {
-      text-align: center;
+    .field {
       flex: 1;
+      display: flex;
+      flex-direction: column;
     }
-    .stat-label {
+    .field label {
       font-size: 0.6rem;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: rgba(255,255,255,0.5);
-      margin-bottom: 2px;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-bottom: 3px;
     }
-    .stat-value {
-      background: rgba(255,255,255,0.12);
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.8rem;
-      padding: 3px 6px;
-      border-radius: 4px;
-    }
-
-    /* Gauge — no label, positioned near Distance */
-    .gauge-wrap {
-      flex-shrink: 0;
-      margin-left: -3px;
-    }
-    .gauge-bar {
-      width: 6px;
-      height: 36px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 3px;
-      overflow: hidden;
-      position: relative;
-    }
-    .gauge-fill {
-      position: absolute;
-      bottom: 0;
+    .field input, .field select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.9rem;
+      padding: 8px 10px;
+      outline: none;
       width: 100%;
-      border-radius: 3px;
-      transition: height 0.3s;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--text-dim); opacity: 0.5; }
+
+    .actions-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-save {
+      flex: 1;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-save:active { background: var(--accent-dim); }
+    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-save.saved { background: var(--green); }
+
+    .btn-set-active {
+      background: transparent;
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-radius: 6px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-set-active:active { background: var(--green); color: var(--bg); }
+    .btn-set-active.is-active {
+      background: var(--green);
+      color: var(--bg);
+      pointer-events: none;
     }
 
-    @media (max-width: 1100px) { :root { --grid-cols: 4; } }
-    @media (max-width: 860px)  {
-      :root { --grid-cols: 3; }
-      .bottom-cards-wrap { transform: scale(1.2); }
+    /* ── Photo Upload ── */
+    .photo-upload-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 8px;
     }
-    @media (max-width: 600px)  {
-      :root { --grid-cols: 2; }
-      .bottom-cards-wrap { transform: scale(1); }
-      .grid-viewport {
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        max-height: 50vh;
-      }
-      .grid-track {
-        transition: none !important;
-        transform: none !important;
-      }
+    .photo-preview {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      overflow: hidden;
+      flex-shrink: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
+    .photo-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .no-photo {
+      font-size: 0.55rem;
+      color: var(--text-dim);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .photo-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .btn-photo {
+      display: block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.8rem;
+      padding: 8px 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .btn-photo:active { border-color: var(--accent); }
+    .photo-status {
+      font-size: 0.65rem;
+      color: var(--accent);
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 20px;
+      font-size: 0.8rem;
+      z-index: 200;
+      max-width: 90vw;
+      text-align: center;
+      word-break: break-word;
+      transition: transform 0.3s;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--green); color: var(--green); }
+    .toast.error { border-color: var(--red); color: var(--red); }
   </style>
 </head>
 <body>
+
 <div id="app"></div>
+<div class="toast" id="toast"></div>
+
 <script>
 // ═══════════════════════════════════════════════════
 // CONFIG — Replace with your deployed Apps Script URL
 // ═══════════════════════════════════════════════════
 const API_URL = 'https://script.google.com/macros/s/AKfycby_0jGdJiz88dRsSPG9clMu1VZ9VhhJGHmZcHwwBZnJWdeYHp4MgYK1rF49MDmSaX1r/exec';
-const POLL_INTERVAL = 30000; // refresh data every 30 seconds
-const FALLBACK_PHOTO = 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=500&q=80';
 // ═══════════════════════════════════════════════════
 
-let runners = Array.from({ length: 20 }, (_, i) => ({
-  leg: i + 1, name: `Runner ${i + 1}`, years: '', time: '--:--',
-  distance: '', difficulty: (i % 10) + 1, start: '--:-- PDT',
-  photo: FALLBACK_PHOTO, active: i === 0
-}));
+let PIN = '';
+let runners = [];
+let openCard = null;
 
-function getActiveRunner() {
-  return runners.find(r => r.active) || runners[0];
+function showToast(msg, type = 'success', duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.className = 'toast', duration);
 }
 
-function fetchRunners() {
-  // Use JSONP to bypass CORS — injects a script tag
-  const cbName = '_b2v_cb_' + Date.now();
-  window[cbName] = function(data) {
-    delete window[cbName];
-    const script = document.getElementById(cbName);
-    if (script) script.remove();
-    
-    if (data && data.status === 'ok' && data.runners && data.runners.length) {
-      runners = data.runners.map(r => ({
-        ...r,
-        photo: r.photo || FALLBACK_PHOTO,
-        name: r.name || 'Runner ' + r.leg,
-        time: r.time || '--:--',
-        start: r.start || '--:-- PDT',
-        difficulty: parseInt(r.difficulty) || 5
-      }));
-      render();
-    }
-  };
+// ── PIN Gate ──
+function renderPinGate(error = false) {
+  document.getElementById('app').innerHTML = `
+    <div class="pin-gate">
+      <h1>B2V Admin</h1>
+      <div class="subtitle">Team LAX 2026</div>
+      <input type="password" inputmode="numeric" class="pin-input ${error ? 'error' : ''}" 
+             id="pinInput" maxlength="10" placeholder="• • • •" autofocus />
+      <button class="pin-btn" onclick="submitPin()">Enter</button>
+    </div>`;
   
-  const script = document.createElement('script');
-  script.id = cbName;
-  script.src = API_URL + '?callback=' + cbName + '&t=' + Date.now();
-  script.onerror = function() {
-    delete window[cbName];
-    script.remove();
-    console.log('JSONP load failed, using cached data');
-  };
-  document.head.appendChild(script);
+  document.getElementById('pinInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitPin();
+  });
 }
 
-// Initial load + polling
-if (API_URL !== 'YOUR_APPS_SCRIPT_URL') {
-  fetchRunners();
-  setInterval(fetchRunners, POLL_INTERVAL);
+async function submitPin() {
+  PIN = document.getElementById('pinInput').value.trim();
+  if (!PIN) { renderPinGate(true); return; }
+
+  const btn = document.querySelector('.pin-btn');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+
+  // Load runner data via JSONP (bypasses CORS)
+  try {
+    const data = await fetchData();
+
+    if (data && data.status === 'ok' && data.runners) {
+      // Validate PIN with a POST
+      try {
+        const result = await postJSON({ pin: PIN, leg: 1 });
+        if (result && result.status === 'error' && result.message === 'Invalid PIN') {
+          btn.disabled = false;
+          btn.textContent = 'Enter';
+          showToast('Invalid PIN', 'error');
+          renderPinGate(true);
+          return;
+        }
+      } catch (e) { /* proceed, validate on save */ }
+
+      runners = data.runners;
+      renderAdmin();
+      return;
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Enter';
+      showToast('API error: ' + (data && data.message ? data.message : 'Unknown'), 'error', 8000);
+      renderPinGate(false);
+      return;
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Enter';
+    showToast('Load failed: ' + err.message, 'error', 8000);
+    renderPinGate(false);
+    return;
+  }
 }
 
-function gaugeColor(d) {
-  if (d <= 3) return '#22c55e';
-  if (d <= 7) return '#facc15';
-  return '#ef4444';
+// ── Fetch helpers ──
+function fetchData() {
+  return new Promise((resolve, reject) => {
+    const cbName = '_b2v_admin_' + Date.now();
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      const s = document.getElementById(cbName);
+      if (s) s.remove();
+      reject(new Error('Timeout loading data'));
+    }, 15000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      const s = document.getElementById(cbName);
+      if (s) s.remove();
+      resolve(data);
+    };
+
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.src = API_URL + '?callback=' + cbName + '&t=' + Date.now();
+    script.onerror = function() {
+      clearTimeout(timeout);
+      delete window[cbName];
+      script.remove();
+      reject(new Error('Script load failed'));
+    };
+    document.head.appendChild(script);
+  });
 }
 
-/* Tiny inline SVG police badge */
-const badgeSVG = `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M12 1L14.5 4H18L19 8L22 10L20.5 13.5L21 17L18 18.5L16 22H8L6 18.5L3 17L3.5 13.5L2 10L5 8L6 4H9.5L12 1Z" fill="#d4a043" stroke="#f5c542" stroke-width="0.8"/>
-  <circle cx="12" cy="11.5" r="3.5" fill="none" stroke="#8B6914" stroke-width="0.8"/>
-  <path d="M12 9L12.7 10.5H14.2L13 11.4L13.4 13L12 12.1L10.6 13L11 11.4L9.8 10.5H11.3L12 9Z" fill="#8B6914"/>
-</svg>`;
+function postJSON(payload) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', API_URL, true);
+    xhr.setRequestHeader('Content-Type', 'text/plain');
+    xhr.timeout = 15000;
+    xhr.onload = function() {
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch (e) { resolve({ status: 'ok' }); }
+    };
+    xhr.onerror = function() { reject(new Error('Network error')); };
+    xhr.ontimeout = function() { reject(new Error('Timeout')); };
+    xhr.send(JSON.stringify(payload));
+  });
+}
 
-function createCard(r) {
-  const yearsDisplay = r.years ? `${r.years} yrs` : '—';
-  return `
-  <div class="card">
-    <div class="card-top">
-      <div class="card-photo-col">
-        <img src="${r.photo}" alt="${r.name}" class="card-photo" />
-        <div class="card-badge-row">
-          ${badgeSVG}
-          <span class="badge-years">${yearsDisplay}</span>
-        </div>
-      </div>
-      <div class="card-identity">
-        <div class="card-leg">Leg ${r.leg}</div>
-        <div class="card-name">${r.name}</div>
+// ── Admin Panel ──
+function renderAdmin() {
+  const activeLeg = runners.find(r => r.active);
+  
+  document.getElementById('app').innerHTML = `
+    <div class="admin-header">
+      <h1>B2V Admin — Team LAX 2026</h1>
+      <div class="sync-status" id="syncStatus">
+        ${activeLeg ? '● Leg ' + activeLeg.leg + ' running' : 'No active runner'}
       </div>
     </div>
-    <div class="card-stats">
-      <div class="stat-box">
-        <div class="stat-label">Distance</div>
-        <div class="stat-value">${r.distance || '—'}</div>
+    <div class="runner-list" id="runnerList">
+      ${runners.map(r => renderRunnerCard(r)).join('')}
+    </div>`;
+}
+
+function renderRunnerCard(r) {
+  const isOpen = openCard === r.leg;
+  const isActive = r.active;
+  const nameDisplay = r.name || 'Unassigned';
+  const metaParts = [];
+  if (r.distance) metaParts.push(r.distance);
+  if (r.time) metaParts.push(r.time);
+  if (r.years) metaParts.push(r.years + ' yrs');
+  const metaStr = metaParts.length ? metaParts.join(' · ') : 'No data';
+
+  return `
+  <div class="runner-card ${isOpen ? 'open' : ''} ${isActive ? 'active-runner' : ''}" id="card-${r.leg}">
+    <div class="runner-card-header" onclick="toggleCard(${r.leg})">
+      <div class="leg-badge">LEG ${r.leg}</div>
+      ${isActive ? '<div class="active-dot"></div>' : ''}
+      <div class="runner-summary">
+        <div class="name ${r.name ? '' : 'empty'}">${nameDisplay}</div>
+        <div class="meta">${metaStr}</div>
       </div>
-      <div class="gauge-wrap">
-        <div class="gauge-bar">
-          <div class="gauge-fill" style="height:${r.difficulty * 10}%;background:${gaugeColor(r.difficulty)}"></div>
+      <div class="chevron">▾</div>
+    </div>
+    <div class="runner-card-body">
+      <div class="field-row">
+        <div class="field">
+          <label>Runner Name</label>
+          <input type="text" id="name-${r.leg}" value="${esc(r.name)}" placeholder="Full name" />
         </div>
       </div>
-      <div class="stat-box">
-        <div class="stat-label">Run Time</div>
-        <div class="stat-value">${r.time}</div>
+      <div class="photo-upload-row">
+        <div class="photo-preview" id="preview-${r.leg}">
+          ${r.photo ? '<img src="' + esc(r.photo) + '" alt="Runner photo" />' : '<div class="no-photo">No Photo</div>'}
+        </div>
+        <div class="photo-buttons">
+          <label class="btn-photo" for="camera-${r.leg}">📷 Take Photo</label>
+          <input type="file" accept="image/*" capture="environment" id="camera-${r.leg}" 
+                 onchange="handlePhoto(${r.leg}, this)" style="display:none" />
+          <label class="btn-photo" for="gallery-${r.leg}">🖼 Choose Photo</label>
+          <input type="file" accept="image/*" id="gallery-${r.leg}" 
+                 onchange="handlePhoto(${r.leg}, this)" style="display:none" />
+          <div class="photo-status" id="photo-status-${r.leg}"></div>
+        </div>
+        <input type="hidden" id="photo-${r.leg}" value="${esc(r.photo)}" />
+        <input type="hidden" id="photodata-${r.leg}" value="" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Distance</label>
+          <input type="text" id="distance-${r.leg}" value="${esc(r.distance)}" placeholder="e.g. 5.2 mi" />
+        </div>
+        <div class="field">
+          <label>Difficulty (1–10)</label>
+          <input type="number" id="difficulty-${r.leg}" value="${r.difficulty}" min="1" max="10" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Run Time</label>
+          <input type="text" id="time-${r.leg}" value="${esc(r.time)}" placeholder="e.g. 42:15" />
+        </div>
+        <div class="field">
+          <label>Start Time</label>
+          <input type="text" id="start-${r.leg}" value="${esc(r.start)}" placeholder="e.g. 3:45 PM PDT" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Years of Service</label>
+          <input type="text" id="years-${r.leg}" value="${esc(r.years)}" placeholder="e.g. 12" />
+        </div>
+      </div>
+      <div class="actions-row">
+        <button class="btn-save" id="save-${r.leg}" onclick="saveRunner(${r.leg})">Save Leg ${r.leg}</button>
+        <button class="btn-set-active ${isActive ? 'is-active' : ''}" onclick="setActive(${r.leg})">
+          ${isActive ? '● Running' : 'Set Active'}
+        </button>
       </div>
     </div>
   </div>`;
 }
 
-/* ── Carousel state ── */
-let carouselTimer = null;
-
-function render() {
-  if (carouselTimer) clearInterval(carouselTimer);
-
-  const app = document.getElementById('app');
-  const allCards = runners.map(createCard).join('');
-  const ar = getActiveRunner();
-
-  const gridContent = allCards + allCards;
-
-  app.innerHTML = `
-    <div class="header">
-      <div class="header-info">
-        <h1>Baker-to-Vegas <span>|</span> Team LAX <span>2026</span></h1>
-        <div class="captain">Team Captain Roxanna Carlos<br/>Airport Police, Sergeant</div>
-      </div>
-    </div>
-    <div style="flex:1"></div>
-    <div class="bottom-cards-wrap">
-      <div class="total-time-card" id="totalTime"></div>
-      <div class="active-panel">
-        <div class="active-info">
-          <div class="label"><span class="pulse-dot"></span>Currently Running</div>
-          <div class="active-name">${ar.name}</div>
-          <div class="active-leg">Leg ${ar.leg}</div>
-          <div class="active-stats">
-            <div class="stat-box">
-              <div class="stat-label">Distance</div>
-              <div class="stat-value">${ar.distance || '—'}</div>
-            </div>
-            <div class="gauge-wrap">
-              <div class="gauge-bar">
-                <div class="gauge-fill" style="height:${ar.difficulty * 10}%;background:${gaugeColor(ar.difficulty)}"></div>
-              </div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">Started</div>
-              <div class="stat-value">${ar.start}</div>
-            </div>
-          </div>
-        </div>
-        <div class="active-photo-col">
-          <img src="${ar.photo}" alt="${ar.name}" class="active-photo" />
-          <div class="active-badge-row">
-            ${badgeSVG}
-            <span class="badge-years">${ar.years ? ar.years + ' yrs' : '—'}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="grid-viewport">
-      <div class="grid-track" id="gridTrack">
-        ${gridContent}
-      </div>
-    </div>`;
-
-  requestAnimationFrame(() => {
-    /* Compute aggregate total time */
-    let totalMinutes = 0;
-    runners.forEach(r => {
-      if (r.time && r.time !== '--:--') {
-        const parts = r.time.split(':');
-        if (parts.length === 2) totalMinutes += parseInt(parts[0]) * 60 + parseInt(parts[1]);
-        if (parts.length === 3) totalMinutes += parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
-      }
-    });
-    const hrs = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-    const totalDisplay = totalMinutes > 0
-      ? `${hrs}h ${String(mins).padStart(2,'0')}m`
-      : '--:--';
-    document.getElementById('totalTime').innerHTML = `
-      <div class="total-label">Total Run Time</div>
-      <div class="total-value">${totalDisplay}</div>`;
-
-    initCarousel();
-  });
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function initCarousel() {
-  const track = document.getElementById('gridTrack');
-  if (!track) return;
+function toggleCard(leg) {
+  openCard = openCard === leg ? null : leg;
+  renderAdmin();
+  if (openCard) {
+    setTimeout(() => {
+      document.getElementById('card-' + leg)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+  }
+}
 
-  /* On mobile (<=600px), enable infinite touch scroll instead of auto-scroll */
-  if (window.innerWidth <= 600) {
-    const viewport = track.parentElement;
-    const style = getComputedStyle(document.documentElement);
-    const cols = parseInt(style.getPropertyValue('--grid-cols')) || 2;
-    const cards = track.querySelectorAll('.card');
-    if (!cards.length) return;
-    const gap = parseInt(style.getPropertyValue('--card-gap')) || 10;
-    const rowOffset = cards[0].offsetHeight + gap;
-    const originalRows = Math.ceil(runners.length / cols);
-    const originalHeight = originalRows * rowOffset - gap;
+function handlePhoto(leg, input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  const status = document.getElementById('photo-status-' + leg);
+  status.textContent = 'Processing...';
+  
+  // Resize image before converting to base64 (keep under 1MB for Apps Script)
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX = 400; // max dimension — keep small for sheet storage
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > MAX) { h = h * MAX / w; w = MAX; } }
+      else { if (h > MAX) { w = w * MAX / h; h = MAX; } }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      
+      // Update preview
+      document.getElementById('preview-' + leg).innerHTML = 
+        '<img src="' + dataUrl + '" alt="Preview" />';
+      
+      // Store base64 for upload on save
+      document.getElementById('photodata-' + leg).value = dataUrl;
+      status.textContent = 'Ready to upload on save';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 
-    viewport.addEventListener('scroll', () => {
-      const scrollPos = viewport.scrollTop;
-      /* When scrolled past the original set, jump back seamlessly */
-      if (scrollPos >= originalHeight + gap) {
-        viewport.scrollTop = scrollPos - originalHeight - gap;
-      }
-      /* If somehow scrolled above start, jump forward */
-      if (scrollPos <= 0) {
-        viewport.scrollTop = scrollPos + originalHeight + gap;
-      }
-    });
-    return;
+async function saveRunner(leg) {
+  const btn = document.getElementById('save-' + leg);
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  
+  const photoData = document.getElementById('photodata-' + leg).value;
+  
+  const payload = {
+    pin: PIN,
+    leg: leg,
+    name:       document.getElementById('name-' + leg).value,
+    photo:      document.getElementById('photo-' + leg).value,
+    distance:   document.getElementById('distance-' + leg).value,
+    difficulty: parseInt(document.getElementById('difficulty-' + leg).value) || 5,
+    time:       document.getElementById('time-' + leg).value,
+    start:      document.getElementById('start-' + leg).value,
+    years:      document.getElementById('years-' + leg).value
+  };
+  
+  // Include photo data if a new photo was selected
+  if (photoData) {
+    payload.photoData = photoData;
+    btn.textContent = 'Uploading photo...';
   }
 
-  const style = getComputedStyle(document.documentElement);
-  const cols = parseInt(style.getPropertyValue('--grid-cols')) || 5;
-  const totalRunners = runners.length;
-  const originalRowCount = Math.ceil(totalRunners / cols);
-  const VISIBLE_ROWS = 2;
-  const INTERVAL_MS = 20000;
-
-  if (originalRowCount <= VISIBLE_ROWS) return;
-
-  const cards = track.querySelectorAll('.card');
-  if (!cards.length) return;
-
-  const gap = parseInt(style.getPropertyValue('--card-gap')) || 10;
-  const rowOffset = cards[0].offsetHeight + gap;
-
-  /* Lock viewport to exactly 2 rows */
-  const viewport = track.parentElement;
-  viewport.style.height = (rowOffset * VISIBLE_ROWS - gap) + 'px';
-
-  let currentTopRow = 0;
-
-  carouselTimer = setInterval(() => {
-    currentTopRow++;
-
-    /* When we've scrolled past all original rows, seamlessly jump back */
-    if (currentTopRow >= originalRowCount) {
-      track.style.transition = 'none';
-      track.style.transform = 'translateY(0)';
-      currentTopRow = 0;
-      /* Let the jump render, then re-enable transition and advance */
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          currentTopRow = 1;
-          track.style.transition = 'transform 0.9s cubic-bezier(0.4, 0, 0.2, 1)';
-          track.style.transform = `translateY(-${currentTopRow * rowOffset}px)`;
-        });
-      });
+  try {
+    const result = await postJSON(payload);
+    
+    if (result.status === 'error') {
+      btn.disabled = false;
+      btn.textContent = 'Save Leg ' + leg;
+      showToast(result.message, 'error');
+      if (result.message === 'Invalid PIN') renderPinGate(true);
       return;
     }
-
-    track.style.transform = `translateY(-${currentTopRow * rowOffset}px)`;
-  }, INTERVAL_MS);
+    
+    // Update local state
+    const runner = runners.find(r => r.leg === leg);
+    if (runner) {
+      runner.name = payload.name;
+      // If server returned a new photo URL (from upload), use it
+      if (result.photoUrl) {
+        runner.photo = result.photoUrl;
+      } else {
+        runner.photo = payload.photo;
+      }
+      runner.distance = payload.distance;
+      runner.difficulty = payload.difficulty;
+      runner.time = payload.time;
+      runner.start = payload.start;
+      runner.years = payload.years;
+    }
+    
+    // Clear the pending photo data
+    const pdEl = document.getElementById('photodata-' + leg);
+    if (pdEl) pdEl.value = '';
+    
+    btn.textContent = 'Saved ✓';
+    btn.classList.add('saved');
+    showToast('Leg ' + leg + ' saved');
+    
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = 'Save Leg ' + leg;
+      btn.classList.remove('saved');
+      renderAdmin();
+    }, 1500);
+    
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Save Leg ' + leg;
+    showToast('Save failed — ' + err.message, 'error');
+  }
 }
 
-render();
+async function setActive(leg) {
+  const payload = {
+    pin: PIN,
+    leg: leg,
+    setActive: true
+  };
 
-/* Recalc on resize */
-let resizeTimer;
-window.addEventListener('resize', () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(render, 250);
-});
+  try {
+    const result = await postJSON(payload);
+    
+    if (result.status === 'error') {
+      showToast(result.message, 'error');
+      if (result.message === 'Invalid PIN') renderPinGate(true);
+      return;
+    }
+    
+    // Update local state
+    runners.forEach(r => r.active = false);
+    const runner = runners.find(r => r.leg === leg);
+    if (runner) runner.active = true;
+    
+    showToast('Leg ' + leg + ' is now active');
+    renderAdmin();
+    
+  } catch (err) {
+    showToast('Failed to set active — ' + err.message, 'error');
+  }
+}
+
+// ── Init ──
+renderPinGate();
 </script>
 </body>
 </html>
