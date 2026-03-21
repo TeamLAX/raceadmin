@@ -334,30 +334,55 @@ async function submitPin() {
   PIN = document.getElementById('pinInput').value.trim();
   if (!PIN) { renderPinGate(true); return; }
 
-  // Test PIN by attempting to load data
+  const btn = document.querySelector('.pin-btn');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+
+  // Validate PIN with a lightweight POST (no actual changes)
   try {
-    const res = await fetch(API_URL + '?t=' + Date.now());
-    const data = await res.json();
-    if (data.status === 'ok') {
-      runners = data.runners;
-      renderAdmin();
-    } else {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ pin: PIN, leg: 1 })
+    });
+    const text = await res.text();
+    const result = JSON.parse(text);
+
+    if (result.status === 'error' && result.message === 'Invalid PIN') {
+      btn.disabled = false;
+      btn.textContent = 'Enter';
+      showToast('Invalid PIN', 'error');
       renderPinGate(true);
+      return;
     }
   } catch (err) {
-    // If API not configured yet, show admin with empty data for preview
-    if (API_URL === 'YOUR_APPS_SCRIPT_URL') {
-      runners = Array.from({ length: 20 }, (_, i) => ({
-        leg: i + 1, name: '', photo: '', distance: '', difficulty: 5,
-        time: '', start: '', years: '', active: i === 0
-      }));
-      renderAdmin();
-      showToast('Preview mode — configure API_URL', 'error', 4000);
-    } else {
-      showToast('Connection error', 'error');
-      renderPinGate(true);
-    }
+    // If we can't read the response, proceed and validate on next save
+    console.log('PIN check response unreadable, proceeding:', err.message);
   }
+
+  // Load runner data via GET (public endpoint)
+  try {
+    const res = await fetch(API_URL + '?t=' + Date.now(), { redirect: 'follow' });
+    const text = await res.text();
+    const data = JSON.parse(text);
+
+    if (data.status === 'ok' && data.runners) {
+      runners = data.runners;
+      renderAdmin();
+      return;
+    }
+  } catch (err) {
+    console.log('GET failed, loading with placeholder data:', err.message);
+  }
+
+  // Fallback: load with empty placeholder data
+  runners = Array.from({ length: 20 }, (_, i) => ({
+    leg: i + 1, name: '', photo: '', distance: '', difficulty: 5,
+    time: '', start: '', years: '', active: i === 0
+  }));
+  renderAdmin();
+  showToast('Could not load sheet data — check API URL', 'error', 4000);
 }
 
 // ── Admin Panel ──
@@ -481,10 +506,23 @@ async function saveRunner(leg) {
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      mode: 'no-cors'
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
     });
+    
+    // Try to read response for error checking
+    try {
+      const text = await res.text();
+      const result = JSON.parse(text);
+      if (result.status === 'error') {
+        btn.disabled = false;
+        btn.textContent = 'Save Leg ' + leg;
+        showToast(result.message, 'error');
+        if (result.message === 'Invalid PIN') renderPinGate(true);
+        return;
+      }
+    } catch (e) { /* response unreadable, assume success */ }
     
     // Update local state
     const runner = runners.find(r => r.leg === leg);
@@ -524,12 +562,22 @@ async function setActive(leg) {
   };
 
   try {
-    await fetch(API_URL, {
+    const res = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      mode: 'no-cors'
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
     });
+    
+    try {
+      const text = await res.text();
+      const result = JSON.parse(text);
+      if (result.status === 'error') {
+        showToast(result.message, 'error');
+        if (result.message === 'Invalid PIN') renderPinGate(true);
+        return;
+      }
+    } catch (e) { /* response unreadable, assume success */ }
     
     // Update local state
     runners.forEach(r => r.active = false);
