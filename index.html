@@ -281,8 +281,11 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 10px 20px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       z-index: 200;
+      max-width: 90vw;
+      text-align: center;
+      word-break: break-word;
       transition: transform 0.3s;
       white-space: nowrap;
     }
@@ -338,51 +341,79 @@ async function submitPin() {
   btn.disabled = true;
   btn.textContent = 'Loading...';
 
-  // Validate PIN with a lightweight POST (no actual changes)
+  // Load runner data via GET
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ pin: PIN, leg: 1 })
-    });
-    const text = await res.text();
-    const result = JSON.parse(text);
-
-    if (result.status === 'error' && result.message === 'Invalid PIN') {
+    const raw = await fetchRaw(API_URL + '?t=' + Date.now());
+    
+    let data;
+    try { data = JSON.parse(raw); } catch (e) {
       btn.disabled = false;
       btn.textContent = 'Enter';
-      showToast('Invalid PIN', 'error');
-      renderPinGate(true);
+      // Show first 150 chars of whatever came back
+      showToast('Not JSON: ' + raw.substring(0, 150), 'error', 10000);
+      renderPinGate(false);
       return;
     }
-  } catch (err) {
-    // If we can't read the response, proceed and validate on next save
-    console.log('PIN check response unreadable, proceeding:', err.message);
-  }
 
-  // Load runner data via GET (public endpoint)
-  try {
-    const res = await fetch(API_URL + '?t=' + Date.now(), { redirect: 'follow' });
-    const text = await res.text();
-    const data = JSON.parse(text);
+    if (data && data.status === 'ok' && data.runners) {
+      // Validate PIN with a POST
+      try {
+        const result = await postJSON({ pin: PIN, leg: 1 });
+        if (result && result.status === 'error' && result.message === 'Invalid PIN') {
+          btn.disabled = false;
+          btn.textContent = 'Enter';
+          showToast('Invalid PIN', 'error');
+          renderPinGate(true);
+          return;
+        }
+      } catch (e) { /* proceed, validate on save */ }
 
-    if (data.status === 'ok' && data.runners) {
       runners = data.runners;
       renderAdmin();
       return;
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Enter';
+      showToast('API error: ' + JSON.stringify(data).substring(0, 150), 'error', 10000);
+      renderPinGate(false);
+      return;
     }
   } catch (err) {
-    console.log('GET failed, loading with placeholder data:', err.message);
+    btn.disabled = false;
+    btn.textContent = 'Enter';
+    showToast('Request failed: ' + err.message, 'error', 10000);
+    renderPinGate(false);
+    return;
   }
+}
 
-  // Fallback: load with empty placeholder data
-  runners = Array.from({ length: 20 }, (_, i) => ({
-    leg: i + 1, name: '', photo: '', distance: '', difficulty: 5,
-    time: '', start: '', years: '', active: i === 0
-  }));
-  renderAdmin();
-  showToast('Could not load sheet data — check API URL', 'error', 4000);
+// ── Fetch helpers that handle Apps Script redirects ──
+function fetchRaw(url) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 15000;
+    xhr.onload = function() { resolve(xhr.responseText); };
+    xhr.onerror = function() { reject(new Error('Network error (status: ' + xhr.status + ')')); };
+    xhr.ontimeout = function() { reject(new Error('Timeout after 15s')); };
+    xhr.send();
+  });
+}
+
+function postJSON(payload) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', API_URL, true);
+    xhr.setRequestHeader('Content-Type', 'text/plain');
+    xhr.timeout = 15000;
+    xhr.onload = function() {
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch (e) { resolve({ status: 'ok' }); }
+    };
+    xhr.onerror = function() { reject(new Error('Network error')); };
+    xhr.ontimeout = function() { reject(new Error('Timeout')); };
+    xhr.send(JSON.stringify(payload));
+  });
 }
 
 // ── Admin Panel ──
@@ -504,25 +535,15 @@ async function saveRunner(leg) {
   };
 
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
-    });
+    const result = await postJSON(payload);
     
-    // Try to read response for error checking
-    try {
-      const text = await res.text();
-      const result = JSON.parse(text);
-      if (result.status === 'error') {
-        btn.disabled = false;
-        btn.textContent = 'Save Leg ' + leg;
-        showToast(result.message, 'error');
-        if (result.message === 'Invalid PIN') renderPinGate(true);
-        return;
-      }
-    } catch (e) { /* response unreadable, assume success */ }
+    if (result.status === 'error') {
+      btn.disabled = false;
+      btn.textContent = 'Save Leg ' + leg;
+      showToast(result.message, 'error');
+      if (result.message === 'Invalid PIN') renderPinGate(true);
+      return;
+    }
     
     // Update local state
     const runner = runners.find(r => r.leg === leg);
@@ -562,22 +583,13 @@ async function setActive(leg) {
   };
 
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
-    });
+    const result = await postJSON(payload);
     
-    try {
-      const text = await res.text();
-      const result = JSON.parse(text);
-      if (result.status === 'error') {
-        showToast(result.message, 'error');
-        if (result.message === 'Invalid PIN') renderPinGate(true);
-        return;
-      }
-    } catch (e) { /* response unreadable, assume success */ }
+    if (result.status === 'error') {
+      showToast(result.message, 'error');
+      if (result.message === 'Invalid PIN') renderPinGate(true);
+      return;
+    }
     
     // Update local state
     runners.forEach(r => r.active = false);
