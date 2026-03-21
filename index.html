@@ -303,7 +303,7 @@
 // ═══════════════════════════════════════════════════
 // CONFIG — Replace with your deployed Apps Script URL
 // ═══════════════════════════════════════════════════
-const API_URL = 'https://script.google.com/macros/s/AKfycbwAGoGZRd3H4E8nKSEcdDpPRggKB737flq5YHnPMWxRi6siye33uoYi_LgO0JXqpX6Z/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyErHDQvFc1PCVYDmSF9Oj21pYHNoiZ4TB2TUaxd_t6dinFcSyWwi4JY1nruXKMo0-p/exec';
 // ═══════════════════════════════════════════════════
 
 let PIN = '';
@@ -341,19 +341,9 @@ async function submitPin() {
   btn.disabled = true;
   btn.textContent = 'Loading...';
 
-  // Load runner data via GET
+  // Load runner data via JSONP (bypasses CORS)
   try {
-    const raw = await fetchRaw(API_URL + '?t=' + Date.now());
-    
-    let data;
-    try { data = JSON.parse(raw); } catch (e) {
-      btn.disabled = false;
-      btn.textContent = 'Enter';
-      // Show first 150 chars of whatever came back
-      showToast('Not JSON: ' + raw.substring(0, 150), 'error', 10000);
-      renderPinGate(false);
-      return;
-    }
+    const data = await fetchData();
 
     if (data && data.status === 'ok' && data.runners) {
       // Validate PIN with a POST
@@ -374,29 +364,48 @@ async function submitPin() {
     } else {
       btn.disabled = false;
       btn.textContent = 'Enter';
-      showToast('API error: ' + JSON.stringify(data).substring(0, 150), 'error', 10000);
+      showToast('API error: ' + (data && data.message ? data.message : 'Unknown'), 'error', 8000);
       renderPinGate(false);
       return;
     }
   } catch (err) {
     btn.disabled = false;
     btn.textContent = 'Enter';
-    showToast('Request failed: ' + err.message, 'error', 10000);
+    showToast('Load failed: ' + err.message, 'error', 8000);
     renderPinGate(false);
     return;
   }
 }
 
-// ── Fetch helpers that handle Apps Script redirects ──
-function fetchRaw(url) {
+// ── Fetch helpers ──
+function fetchData() {
   return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.timeout = 15000;
-    xhr.onload = function() { resolve(xhr.responseText); };
-    xhr.onerror = function() { reject(new Error('Network error (status: ' + xhr.status + ')')); };
-    xhr.ontimeout = function() { reject(new Error('Timeout after 15s')); };
-    xhr.send();
+    const cbName = '_b2v_admin_' + Date.now();
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      const s = document.getElementById(cbName);
+      if (s) s.remove();
+      reject(new Error('Timeout loading data'));
+    }, 15000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      const s = document.getElementById(cbName);
+      if (s) s.remove();
+      resolve(data);
+    };
+
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.src = API_URL + '?callback=' + cbName + '&t=' + Date.now();
+    script.onerror = function() {
+      clearTimeout(timeout);
+      delete window[cbName];
+      script.remove();
+      reject(new Error('Script load failed'));
+    };
+    document.head.appendChild(script);
   });
 }
 
