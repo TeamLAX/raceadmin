@@ -530,7 +530,7 @@ function renderRunnerCard(r) {
   return `
   <div class="runner-card ${isOpen ? 'open' : ''} ${isActive ? 'active-runner' : ''}" id="card-${r.leg}">
     <div class="runner-card-header" onclick="toggleCard(${r.leg})">
-      <div class="leg-badge">LEG ${r.leg}</div>
+      <div class="leg-badge">STAGE ${r.leg}</div>
       ${isActive ? '<div class="active-dot"></div>' : ''}
       <div class="runner-summary">
         <div class="name ${r.name ? '' : 'empty'}">${nameDisplay}</div>
@@ -685,7 +685,7 @@ async function saveRunner(leg) {
     
     if (result.status === 'error') {
       btn.disabled = false;
-      btn.textContent = 'Save Leg ' + leg;
+      btn.textContent = 'Save Stage ' + leg;
       showToast(result.message, 'error');
       if (result.message === 'Invalid PIN') renderPinGate(true);
       return;
@@ -714,18 +714,18 @@ async function saveRunner(leg) {
     
     btn.textContent = 'Saved ✓';
     btn.classList.add('saved');
-    showToast('Leg ' + leg + ' saved');
+    showToast('Stage ' + leg + ' saved');
     
     setTimeout(() => {
       btn.disabled = false;
-      btn.textContent = 'Save Leg ' + leg;
+      btn.textContent = 'Save Stage ' + leg;
       btn.classList.remove('saved');
       renderAdmin();
     }, 1500);
     
   } catch (err) {
     btn.disabled = false;
-    btn.textContent = 'Save Leg ' + leg;
+    btn.textContent = 'Save Stage ' + leg;
     showToast('Save failed — ' + err.message, 'error');
   }
 }
@@ -751,7 +751,7 @@ async function setActive(leg) {
     const runner = runners.find(r => r.leg === leg);
     if (runner) runner.active = true;
     
-    showToast('Leg ' + leg + ' is now active');
+    showToast('Stage ' + leg + ' is now active');
     renderAdmin();
     
   } catch (err) {
