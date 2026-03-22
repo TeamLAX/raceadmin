@@ -271,6 +271,26 @@
       pointer-events: none;
     }
 
+    /* ── Halfway Checkbox ── */
+    .halfway-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .halfway-check input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .halfway-check span {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
     /* ── Photo Upload ── */
     .photo-upload-row {
       display: flex;
@@ -567,6 +587,12 @@ function renderRunnerCard(r) {
           <input type="text" id="years-${r.leg}" value="${esc(r.years)}" placeholder="e.g. 12" />
         </div>
       </div>
+      <div class="field-row" style="align-items:center">
+        <label class="halfway-check">
+          <input type="checkbox" id="halfway-${r.leg}" ${r.halfway ? 'checked' : ''} />
+          <span>Halfway Point Reached</span>
+        </label>
+      </div>
       <div class="actions-row">
         <button class="btn-save" id="save-${r.leg}" onclick="saveRunner(${r.leg})">Save Leg ${r.leg}</button>
         <button class="btn-set-active ${isActive ? 'is-active' : ''}" onclick="setActive(${r.leg})">
@@ -644,7 +670,8 @@ async function saveRunner(leg) {
     difficulty: parseInt(document.getElementById('difficulty-' + leg).value) || 5,
     time:       document.getElementById('time-' + leg).value,
     start:      document.getElementById('start-' + leg).value,
-    years:      document.getElementById('years-' + leg).value
+    years:      document.getElementById('years-' + leg).value,
+    halfway:    document.getElementById('halfway-' + leg).checked
   };
   
   // Include photo data if a new photo was selected
