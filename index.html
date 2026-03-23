@@ -556,6 +556,7 @@ async function submitPin() {
         clockState = { ...clockState, ...data.clock };
       }
       renderAdmin();
+      if (clockState.status === 'running') startAdminClockTick();
       return;
     } else {
       btn.disabled = false;
@@ -715,7 +716,7 @@ function renderClockPanel() {
       
       <div class="clock-buttons">
         <button class="clock-btn start" ${isRunning ? 'disabled' : ''} 
-          onclick="clockAction('start', { autoStartTime: document.getElementById('autoStartInput').value || new Date().toISOString() })">
+          onclick="clockAction('start', { autoStartTime: clockState.autoStartTime || new Date().toISOString() })">
           ▶ Start
         </button>
         <button class="clock-btn stop" ${!isRunning ? 'disabled' : ''} 
