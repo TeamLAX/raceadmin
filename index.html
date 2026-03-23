@@ -110,6 +110,123 @@
     .admin-header .sync-status.syncing { color: var(--accent); }
     .admin-header .sync-status.error { color: var(--red); }
 
+    /* ── Stopwatch Control Panel ── */
+    .clock-panel {
+      background: var(--surface);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      margin: 0.8rem;
+      padding: 14px 16px;
+    }
+    .clock-panel-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .clock-panel-title::before {
+      content: '⏱';
+    }
+    .clock-display {
+      font-family: 'Oswald', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 8px 0;
+      letter-spacing: 0.05em;
+    }
+    .clock-display.running { color: var(--green); }
+    .clock-display.stopped { color: var(--red); }
+    .clock-display.confirmed { color: var(--accent); }
+    .clock-advisory {
+      text-align: center;
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--red);
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 6px;
+      padding: 8px;
+      margin: 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      animation: advisoryPulse 2s infinite;
+    }
+    @keyframes advisoryPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .clock-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .clock-btn {
+      flex: 1;
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 10px 8px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #fff;
+    }
+    .clock-btn.start { background: var(--green); }
+    .clock-btn.stop { background: var(--red); }
+    .clock-btn.confirm { background: var(--accent); color: var(--bg); }
+    .clock-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .clock-section {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .clock-section label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .clock-section input {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.95rem;
+    }
+    .clock-section .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .clock-section .input-row input { flex: 1; }
+    .clock-section .input-row .clock-btn { flex: 0 0 auto; padding: 8px 14px; }
+    .clock-status-badge {
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+    .clock-status-badge.running { background: var(--green); color: #fff; }
+    .clock-status-badge.stopped { background: var(--red); color: #fff; }
+    .clock-status-badge.confirmed { background: var(--accent); color: var(--bg); }
+
     /* ── Runner List ── */
     .runner-list {
       padding: 0.8rem;
@@ -435,6 +552,9 @@ async function submitPin() {
       } catch (e) { /* proceed, validate on save */ }
 
       runners = data.runners;
+      if (data.clock) {
+        clockState = { ...clockState, ...data.clock };
+      }
       renderAdmin();
       return;
     } else {
@@ -501,6 +621,130 @@ function postJSON(payload) {
   });
 }
 
+// ── Clock State ──
+let clockState = {
+  status: 'stopped',          // running, stopped, confirmed
+  autoStartTime: '2026-03-28T08:00:00-07:00',
+  stoppedAt: '',
+  confirmedTime: '',
+  advisory: ''
+};
+let adminClockInterval = null;
+
+function getClockDisplayTime() {
+  if (clockState.status === 'confirmed' && clockState.confirmedTime) {
+    return clockState.confirmedTime;
+  }
+  if (clockState.status === 'stopped' && clockState.stoppedAt) {
+    return clockState.stoppedAt;
+  }
+  if (clockState.status === 'running' && clockState.autoStartTime) {
+    const start = new Date(clockState.autoStartTime).getTime();
+    const now = Date.now();
+    const elapsed = now - start;
+    if (elapsed <= 0) return '00:00:00';
+    const h = Math.floor(elapsed / 3600000);
+    const m = Math.floor((elapsed % 3600000) / 60000);
+    const s = Math.floor((elapsed % 60000) / 1000);
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  return '00:00:00';
+}
+
+function startAdminClockTick() {
+  if (adminClockInterval) clearInterval(adminClockInterval);
+  adminClockInterval = setInterval(() => {
+    const el = document.getElementById('adminClockDisplay');
+    if (el && clockState.status === 'running') {
+      el.textContent = getClockDisplayTime();
+    }
+  }, 500);
+}
+
+async function clockAction(action, extra = {}) {
+  const payload = { pin: storedPin, clockAction: action, ...extra };
+  
+  if (action === 'stop') {
+    payload.stoppedAt = getClockDisplayTime();
+  }
+  
+  showToast('Updating clock...');
+  try {
+    const res = await postJSON(payload);
+    if (res.status === 'ok') {
+      if (action === 'start') {
+        clockState.status = 'running';
+        clockState.stoppedAt = '';
+        clockState.confirmedTime = '';
+        clockState.advisory = '';
+      } else if (action === 'stop') {
+        clockState.status = 'stopped';
+        clockState.stoppedAt = payload.stoppedAt;
+        clockState.advisory = 'UNCONFIRMED, ADJUSTMENT PENDING';
+      } else if (action === 'confirm') {
+        clockState.status = 'confirmed';
+        clockState.confirmedTime = extra.confirmedTime;
+        clockState.advisory = '';
+      } else if (action === 'setAutoStart') {
+        clockState.autoStartTime = extra.autoStartTime;
+      }
+      showToast(res.message || 'Done');
+      renderAdmin();
+      if (clockState.status === 'running') startAdminClockTick();
+    }
+  } catch (err) {
+    showToast('Error: ' + err.message);
+  }
+}
+
+function renderClockPanel() {
+  const isRunning = clockState.status === 'running';
+  const isStopped = clockState.status === 'stopped';
+  const isConfirmed = clockState.status === 'confirmed';
+  const displayTime = getClockDisplayTime();
+  const statusClass = isRunning ? 'running' : isConfirmed ? 'confirmed' : 'stopped';
+  const statusLabel = isRunning ? 'Running' : isConfirmed ? 'Confirmed' : 'Stopped';
+  
+  return `
+    <div class="clock-panel">
+      <div class="clock-panel-title">Race Stopwatch <span class="clock-status-badge ${statusClass}">${statusLabel}</span></div>
+      
+      <div class="clock-display ${statusClass}" id="adminClockDisplay">${displayTime}</div>
+      
+      ${isStopped && clockState.advisory ? '<div class="clock-advisory">' + clockState.advisory + '</div>' : ''}
+      
+      <div class="clock-buttons">
+        <button class="clock-btn start" ${isRunning ? 'disabled' : ''} 
+          onclick="clockAction('start', { autoStartTime: document.getElementById('autoStartInput').value || new Date().toISOString() })">
+          ▶ Start
+        </button>
+        <button class="clock-btn stop" ${!isRunning ? 'disabled' : ''} 
+          onclick="clockAction('stop')">
+          ■ Stop
+        </button>
+      </div>
+      
+      <div class="clock-section">
+        <label>Auto-Start Time (pre-programmed)</label>
+        <div class="input-row">
+          <input type="datetime-local" id="autoStartInput" 
+            value="${clockState.autoStartTime ? clockState.autoStartTime.slice(0,16) : '2026-03-28T08:00'}" />
+          <button class="clock-btn confirm" onclick="clockAction('setAutoStart', { autoStartTime: document.getElementById('autoStartInput').value + ':00-07:00' })">Set</button>
+        </div>
+      </div>
+      
+      ${isStopped || isConfirmed ? `
+      <div class="clock-section">
+        <label>Confirmed Final Time (HH:MM:SS)</label>
+        <div class="input-row">
+          <input type="text" id="confirmedTimeInput" placeholder="e.g. 13:42:18" 
+            value="${clockState.confirmedTime || clockState.stoppedAt || ''}" />
+          <button class="clock-btn confirm" onclick="clockAction('confirm', { confirmedTime: document.getElementById('confirmedTimeInput').value })">Confirm</button>
+        </div>
+      </div>` : ''}
+    </div>`;
+}
+
 // ── Admin Panel ──
 function renderAdmin() {
   const activeLeg = runners.find(r => r.active);
@@ -509,12 +753,15 @@ function renderAdmin() {
     <div class="admin-header">
       <h1>B2V Admin — Team LAX 2026</h1>
       <div class="sync-status" id="syncStatus">
-        ${activeLeg ? '● Leg ' + activeLeg.leg + ' running' : 'No active runner'}
+        ${activeLeg ? '● Stage ' + activeLeg.leg + ' running' : 'No active runner'}
       </div>
     </div>
+    ${renderClockPanel()}
     <div class="runner-list" id="runnerList">
       ${runners.map(r => renderRunnerCard(r)).join('')}
     </div>`;
+  
+  if (clockState.status === 'running') startAdminClockTick();
 }
 
 function renderRunnerCard(r) {
