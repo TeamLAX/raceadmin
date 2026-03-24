@@ -746,7 +746,14 @@ function doClockSetAutoStart() {
   var input = document.getElementById('autoStartInput');
   var val = input ? input.value : '';
   if (!val) { showToast('Enter a date/time first', 'error'); return; }
-  clockState.autoStartTime = val + ':00-07:00';
+  // Build ISO string with local timezone offset
+  var date = new Date(val);
+  var offset = date.getTimezoneOffset(); // minutes, positive = west of UTC
+  var sign = offset <= 0 ? '+' : '-';
+  var absOff = Math.abs(offset);
+  var offHrs = String(Math.floor(absOff / 60)).padStart(2, '0');
+  var offMins = String(absOff % 60).padStart(2, '0');
+  clockState.autoStartTime = val + ':00' + sign + offHrs + ':' + offMins;
   clockState.status = 'running';
   clockState.stoppedAt = '';
   clockState.confirmedTime = '';
