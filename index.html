@@ -557,7 +557,7 @@ async function submitPin() {
         clockState = { ...clockState, ...data.clock };
       }
       renderAdmin();
-      if (clockState.status === 'running') startAdminClockTick();
+
       return;
     } else {
       btn.disabled = false;
@@ -657,53 +657,17 @@ let clockState = {
   confirmedTime: '',
   advisory: ''
 };
-let adminClockInterval = null;
-
-function getClockDisplayTime() {
-  if (clockState.status === 'confirmed' && clockState.confirmedTime) {
-    return clockState.confirmedTime;
-  }
-  if (clockState.status === 'stopped' && clockState.stoppedAt) {
-    return clockState.stoppedAt;
-  }
-  if (clockState.status === 'running' && clockState.autoStartTime) {
-    const start = new Date(clockState.autoStartTime).getTime();
-    const now = Date.now();
-    const elapsed = now - start;
-    if (elapsed <= 0) return '00:00:00';
-    const h = Math.floor(elapsed / 3600000);
-    const m = Math.floor((elapsed % 3600000) / 60000);
-    const s = Math.floor((elapsed % 60000) / 1000);
-    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-  }
-  return '00:00:00';
-}
-
-function startAdminClockTick() {
-  if (adminClockInterval) clearInterval(adminClockInterval);
-  adminClockInterval = setInterval(() => {
-    const el = document.getElementById('adminClockDisplay');
-    if (el && clockState.status === 'running') {
-      el.textContent = getClockDisplayTime();
-    }
-  }, 500);
-}
-
-// Clock actions are handled by doClockStart, doClockStop, doClockConfirm, doClockSetAutoStart
 
 function renderClockPanel() {
   const isRunning = clockState.status === 'running';
   const isStopped = clockState.status === 'stopped';
   const isConfirmed = clockState.status === 'confirmed';
-  const displayTime = getClockDisplayTime();
   const statusClass = isRunning ? 'running' : isConfirmed ? 'confirmed' : isStopped && clockState.stoppedAt ? 'stopped' : 'waiting';
-  const statusLabel = isRunning ? 'Running' : isConfirmed ? 'Confirmed' : isStopped && clockState.stoppedAt ? 'Stopped' : 'Waiting for Start Time';
+  const statusLabel = isRunning ? 'Running' : isConfirmed ? 'Confirmed' : isStopped && clockState.stoppedAt ? 'Stopped' : 'Not Set';
   
   return `
     <div class="clock-panel">
-      <div class="clock-panel-title">Race Stopwatch <span class="clock-status-badge ${statusClass}">${statusLabel}</span></div>
-      
-      <div class="clock-display ${statusClass}" id="adminClockDisplay">${displayTime}</div>
+      <div class="clock-panel-title">Viewer Stopwatch Control <span class="clock-status-badge ${statusClass}">${statusLabel}</span></div>
       
       ${isStopped && clockState.advisory ? '<div class="clock-advisory">' + clockState.advisory + '</div>' : ''}
       
@@ -714,7 +678,7 @@ function renderClockPanel() {
             value="${clockState.autoStartTime ? clockState.autoStartTime.slice(0,16) : ''}" />
           <button class="clock-btn confirm" onclick="doClockSetAutoStart()">Set</button>
         </div>
-        <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:4px">Clock starts automatically at this time</div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:4px">Viewer stopwatch starts automatically at this time</div>
       </div>
       
       <div class="clock-buttons">
@@ -739,11 +703,21 @@ function renderClockPanel() {
 // Clock starts automatically from the set date/time — no manual start button
 
 function doClockStop() {
-  var time = getClockDisplayTime();
+  // Calculate elapsed time to save as stoppedAt
+  var time = '00:00:00';
+  if (clockState.autoStartTime) {
+    var start = new Date(clockState.autoStartTime).getTime();
+    var elapsed = Date.now() - start;
+    if (elapsed > 0) {
+      var h = Math.floor(elapsed / 3600000);
+      var m = Math.floor((elapsed % 3600000) / 60000);
+      var s = Math.floor((elapsed % 60000) / 1000);
+      time = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    }
+  }
   clockState.status = 'stopped';
   clockState.stoppedAt = time;
   clockState.advisory = 'UNCONFIRMED, ADJUSTMENT PENDING';
-  if (adminClockInterval) { clearInterval(adminClockInterval); adminClockInterval = null; }
   renderAdmin();
   showToast('Saving stop to sheet...');
   saveClockViaJSONP('stop', { stoppedAt: time }).then(function(res) {
@@ -759,7 +733,7 @@ function doClockConfirm() {
   clockState.status = 'confirmed';
   clockState.confirmedTime = time;
   clockState.advisory = '';
-  if (adminClockInterval) { clearInterval(adminClockInterval); adminClockInterval = null; }
+
   renderAdmin();
   showToast('Saving confirmed time...');
   saveClockViaJSONP('confirm', { confirmedTime: time }).then(function(res) {
@@ -778,7 +752,7 @@ function doClockSetAutoStart() {
   clockState.confirmedTime = '';
   clockState.advisory = '';
   renderAdmin();
-  startAdminClockTick();
+
   showToast('Saving to sheet...');
   saveClockViaJSONP('start', { autoStartTime: clockState.autoStartTime }).then(function(res) {
     if (res && res.status === 'ok') showToast('Race start saved');
@@ -802,7 +776,7 @@ function renderAdmin() {
       ${runners.map(r => renderRunnerCard(r)).join('')}
     </div>`;
   
-  if (clockState.status === 'running') startAdminClockTick();
+
 }
 
 function renderRunnerCard(r) {
