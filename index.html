@@ -662,44 +662,7 @@ function startAdminClockTick() {
   }, 500);
 }
 
-async function clockAction(action, extra = {}) {
-  const payload = { pin: storedPin, clockAction: action, ...extra };
-  
-  if (action === 'stop') {
-    payload.stoppedAt = getClockDisplayTime();
-  }
-  
-  // Update local state IMMEDIATELY so the clock responds
-  if (action === 'start') {
-    clockState.status = 'running';
-    clockState.autoStartTime = extra.autoStartTime || clockState.autoStartTime || new Date().toISOString();
-    clockState.stoppedAt = '';
-    clockState.confirmedTime = '';
-    clockState.advisory = '';
-  } else if (action === 'stop') {
-    clockState.status = 'stopped';
-    clockState.stoppedAt = payload.stoppedAt;
-    clockState.advisory = 'UNCONFIRMED, ADJUSTMENT PENDING';
-  } else if (action === 'confirm') {
-    clockState.status = 'confirmed';
-    clockState.confirmedTime = extra.confirmedTime;
-    clockState.advisory = '';
-  } else if (action === 'setAutoStart') {
-    clockState.autoStartTime = extra.autoStartTime;
-  }
-  
-  // Re-render and start ticking immediately
-  renderAdmin();
-  if (clockState.status === 'running') startAdminClockTick();
-  showToast('Clock ' + action + '...');
-  
-  // Sync to API in background
-  try {
-    await postJSON(payload);
-  } catch (err) {
-    showToast('Sync warning: ' + err.message, 'error');
-  }
-}
+// Clock actions are handled by doClockStart, doClockStop, doClockConfirm, doClockSetAutoStart
 
 function renderClockPanel() {
   const isRunning = clockState.status === 'running';
@@ -719,11 +682,11 @@ function renderClockPanel() {
       
       <div class="clock-buttons">
         <button class="clock-btn start" ${isRunning ? 'disabled' : ''} 
-          onclick="clockAction('start', { autoStartTime: clockState.autoStartTime || new Date().toISOString() })">
+          onclick="doClockStart()">
           ▶ Start
         </button>
         <button class="clock-btn stop" ${!isRunning ? 'disabled' : ''} 
-          onclick="clockAction('stop')">
+          onclick="doClockStop()">
           ■ Stop
         </button>
       </div>
@@ -733,7 +696,7 @@ function renderClockPanel() {
         <div class="input-row">
           <input type="datetime-local" id="autoStartInput" 
             value="${clockState.autoStartTime ? clockState.autoStartTime.slice(0,16) : '2026-03-28T08:00'}" />
-          <button class="clock-btn confirm" onclick="clockAction('setAutoStart', { autoStartTime: document.getElementById('autoStartInput').value + ':00-07:00' })">Set</button>
+          <button class="clock-btn confirm" onclick="doClockSetAutoStart()">Set</button>
         </div>
       </div>
       
@@ -743,10 +706,56 @@ function renderClockPanel() {
         <div class="input-row">
           <input type="text" id="confirmedTimeInput" placeholder="e.g. 13:42:18" 
             value="${clockState.confirmedTime || clockState.stoppedAt || ''}" />
-          <button class="clock-btn confirm" onclick="clockAction('confirm', { confirmedTime: document.getElementById('confirmedTimeInput').value })">Confirm</button>
+          <button class="clock-btn confirm" onclick="doClockConfirm()">Confirm</button>
         </div>
       </div>` : ''}
     </div>`;
+}
+
+function doClockStart() {
+  clockState.status = 'running';
+  clockState.stoppedAt = '';
+  clockState.confirmedTime = '';
+  clockState.advisory = '';
+  renderAdmin();
+  startAdminClockTick();
+  showToast('Clock started');
+  // Sync to API in background
+  postJSON({ pin: storedPin, clockAction: 'start', autoStartTime: clockState.autoStartTime }).catch(function(){});
+}
+
+function doClockStop() {
+  var time = getClockDisplayTime();
+  clockState.status = 'stopped';
+  clockState.stoppedAt = time;
+  clockState.advisory = 'UNCONFIRMED, ADJUSTMENT PENDING';
+  if (adminClockInterval) { clearInterval(adminClockInterval); adminClockInterval = null; }
+  renderAdmin();
+  showToast('Clock stopped at ' + time);
+  postJSON({ pin: storedPin, clockAction: 'stop', stoppedAt: time }).catch(function(){});
+}
+
+function doClockConfirm() {
+  var input = document.getElementById('confirmedTimeInput');
+  var time = input ? input.value : '';
+  if (!time) { showToast('Enter a time first', 'error'); return; }
+  clockState.status = 'confirmed';
+  clockState.confirmedTime = time;
+  clockState.advisory = '';
+  if (adminClockInterval) { clearInterval(adminClockInterval); adminClockInterval = null; }
+  renderAdmin();
+  showToast('Time confirmed: ' + time);
+  postJSON({ pin: storedPin, clockAction: 'confirm', confirmedTime: time }).catch(function(){});
+}
+
+function doClockSetAutoStart() {
+  var input = document.getElementById('autoStartInput');
+  var val = input ? input.value : '';
+  if (!val) { showToast('Enter a date/time first', 'error'); return; }
+  clockState.autoStartTime = val + ':00-07:00';
+  renderAdmin();
+  showToast('Auto-start set to ' + val);
+  postJSON({ pin: storedPin, clockAction: 'setAutoStart', autoStartTime: clockState.autoStartTime }).catch(function(){});
 }
 
 // ── Admin Panel ──
