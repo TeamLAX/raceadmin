@@ -497,7 +497,7 @@
 // ═══════════════════════════════════════════════════
 // CONFIG — Replace with your deployed Apps Script URL
 // ═══════════════════════════════════════════════════
-const API_URL = 'https://script.google.com/macros/s/AKfycby_0jGdJiz88dRsSPG9clMu1VZ9VhhJGHmZcHwwBZnJWdeYHp4MgYK1rF49MDmSaX1r/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwXVz6imVR8K76L2hfAOiUApcbB0D1pkTrR8rDtJCRmS3e7xk6HvbgIAzHe0JP34uJ6/exec';
 // ═══════════════════════════════════════════════════
 
 let PIN = '';
@@ -608,25 +608,51 @@ function fetchData() {
 }
 
 function postJSON(payload) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', API_URL, true);
-    xhr.setRequestHeader('Content-Type', 'text/plain');
-    xhr.timeout = 15000;
-    xhr.onload = function() {
-      try { resolve(JSON.parse(xhr.responseText)); }
-      catch (e) { resolve({ status: 'ok' }); }
-    };
-    xhr.onerror = function() { reject(new Error('Network error')); };
-    xhr.ontimeout = function() { reject(new Error('Timeout')); };
-    xhr.send(JSON.stringify(payload));
+  // Use fetch with redirect follow — Apps Script redirects POSTs
+  return fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload),
+    redirect: 'follow'
+  })
+  .then(function(res) { return res.text(); })
+  .then(function(text) {
+    try { return JSON.parse(text); }
+    catch (e) { return { status: 'ok' }; }
   });
 }
 
-// ── Clock State ──
+// Reliable clock save via JSONP GET (bypasses CORS completely)
+function saveClockViaJSONP(action, params) {
+  return new Promise(function(resolve) {
+    var cbName = '_clk_' + Date.now();
+    var url = API_URL + '?callback=' + cbName + '&clockAction=' + action;
+    for (var k in params) {
+      if (params[k]) url += '&' + k + '=' + encodeURIComponent(params[k]);
+    }
+    url += '&pin=' + encodeURIComponent(storedPin);
+    window[cbName] = function(data) {
+      delete window[cbName];
+      var s = document.getElementById(cbName);
+      if (s) s.remove();
+      resolve(data);
+    };
+    var script = document.createElement('script');
+    script.id = cbName;
+    script.src = url;
+    script.onerror = function() {
+      delete window[cbName];
+      script.remove();
+      resolve({ status: 'error' });
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// ── Clock State — loaded from Google Sheet, no hardcoded defaults ──
 let clockState = {
-  status: 'stopped',          // running, stopped, confirmed
-  autoStartTime: '2026-03-28T08:00:00-07:00',
+  status: 'stopped',
+  autoStartTime: '',
   stoppedAt: '',
   confirmedTime: '',
   advisory: ''
@@ -685,7 +711,7 @@ function renderClockPanel() {
         <label>Race Start Date & Time</label>
         <div class="input-row">
           <input type="datetime-local" id="autoStartInput" 
-            value="${clockState.autoStartTime ? clockState.autoStartTime.slice(0,16) : '2026-03-28T08:00'}" />
+            value="${clockState.autoStartTime ? clockState.autoStartTime.slice(0,16) : ''}" />
           <button class="clock-btn confirm" onclick="doClockSetAutoStart()">Set</button>
         </div>
         <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:4px">Clock starts automatically at this time</div>
@@ -719,8 +745,11 @@ function doClockStop() {
   clockState.advisory = 'UNCONFIRMED, ADJUSTMENT PENDING';
   if (adminClockInterval) { clearInterval(adminClockInterval); adminClockInterval = null; }
   renderAdmin();
-  showToast('Clock stopped at ' + time);
-  postJSON({ pin: storedPin, clockAction: 'stop', stoppedAt: time }).catch(function(){});
+  showToast('Saving stop to sheet...');
+  saveClockViaJSONP('stop', { stoppedAt: time }).then(function(res) {
+    if (res && res.status === 'ok') showToast('Clock stopped at ' + time);
+    else showToast('Save may have failed', 'error');
+  });
 }
 
 function doClockConfirm() {
@@ -732,8 +761,11 @@ function doClockConfirm() {
   clockState.advisory = '';
   if (adminClockInterval) { clearInterval(adminClockInterval); adminClockInterval = null; }
   renderAdmin();
-  showToast('Time confirmed: ' + time);
-  postJSON({ pin: storedPin, clockAction: 'confirm', confirmedTime: time }).catch(function(){});
+  showToast('Saving confirmed time...');
+  saveClockViaJSONP('confirm', { confirmedTime: time }).then(function(res) {
+    if (res && res.status === 'ok') showToast('Time confirmed: ' + time);
+    else showToast('Save may have failed', 'error');
+  });
 }
 
 function doClockSetAutoStart() {
@@ -747,8 +779,11 @@ function doClockSetAutoStart() {
   clockState.advisory = '';
   renderAdmin();
   startAdminClockTick();
-  showToast('Race start set — clock will auto-start at ' + val);
-  postJSON({ pin: storedPin, clockAction: 'start', autoStartTime: clockState.autoStartTime }).catch(function(){});
+  showToast('Saving to sheet...');
+  saveClockViaJSONP('start', { autoStartTime: clockState.autoStartTime }).then(function(res) {
+    if (res && res.status === 'ok') showToast('Race start saved');
+    else showToast('Save may have failed — check sheet', 'error');
+  });
 }
 
 // ── Admin Panel ──
