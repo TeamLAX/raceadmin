@@ -497,7 +497,7 @@
 // ═══════════════════════════════════════════════════
 // CONFIG — Replace with your deployed Apps Script URL
 // ═══════════════════════════════════════════════════
-const API_URL = 'https://script.google.com/macros/s/AKfycbwXVz6imVR8K76L2hfAOiUApcbB0D1pkTrR8rDtJCRmS3e7xk6HvbgIAzHe0JP34uJ6/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbw3wLqaeIWBC9NNuvCmQDoLh8OtQZJ771jUtUFrq3YgiOPB1FPEEDkzopPTfOpfdcuK/exec';
 // ═══════════════════════════════════════════════════
 
 let PIN = '';
@@ -630,11 +630,16 @@ function saveClockViaJSONP(action, params) {
     for (var k in params) {
       if (params[k]) url += '&' + k + '=' + encodeURIComponent(params[k]);
     }
-    url += '&pin=' + encodeURIComponent(storedPin);
+    url += '&pin=' + encodeURIComponent(PIN);
+    
+    console.log('Clock save URL:', url);
+    
     window[cbName] = function(data) {
       delete window[cbName];
       var s = document.getElementById(cbName);
       if (s) s.remove();
+      console.log('Clock save response:', JSON.stringify(data));
+      showToast('Response: ' + (data && data.message ? data.message : JSON.stringify(data)));
       resolve(data);
     };
     var script = document.createElement('script');
@@ -643,9 +648,22 @@ function saveClockViaJSONP(action, params) {
     script.onerror = function() {
       delete window[cbName];
       script.remove();
+      console.log('Clock save JSONP failed');
+      showToast('Clock save failed — script error', 'error');
       resolve({ status: 'error' });
     };
     document.head.appendChild(script);
+    
+    // Timeout
+    setTimeout(function() {
+      if (window[cbName]) {
+        delete window[cbName];
+        var s = document.getElementById(cbName);
+        if (s) s.remove();
+        showToast('Clock save timed out — PIN may be wrong', 'error');
+        resolve({ status: 'error', message: 'timeout' });
+      }
+    }, 10000);
   });
 }
 
