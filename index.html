@@ -713,6 +713,12 @@ function renderClockPanel() {
 }
 
 function doClockStart() {
+  // If autoStartTime is in the future, use current time instead
+  var startTime = clockState.autoStartTime;
+  if (!startTime || new Date(startTime).getTime() > Date.now()) {
+    startTime = new Date().toISOString();
+    clockState.autoStartTime = startTime;
+  }
   clockState.status = 'running';
   clockState.stoppedAt = '';
   clockState.confirmedTime = '';
@@ -720,8 +726,7 @@ function doClockStart() {
   renderAdmin();
   startAdminClockTick();
   showToast('Clock started');
-  // Sync to API in background
-  postJSON({ pin: storedPin, clockAction: 'start', autoStartTime: clockState.autoStartTime }).catch(function(){});
+  postJSON({ pin: storedPin, clockAction: 'start', autoStartTime: startTime }).catch(function(){});
 }
 
 function doClockStop() {
