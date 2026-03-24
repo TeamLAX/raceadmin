@@ -669,32 +669,35 @@ async function clockAction(action, extra = {}) {
     payload.stoppedAt = getClockDisplayTime();
   }
   
-  showToast('Updating clock...');
+  // Update local state IMMEDIATELY so the clock responds
+  if (action === 'start') {
+    clockState.status = 'running';
+    clockState.autoStartTime = extra.autoStartTime || clockState.autoStartTime || new Date().toISOString();
+    clockState.stoppedAt = '';
+    clockState.confirmedTime = '';
+    clockState.advisory = '';
+  } else if (action === 'stop') {
+    clockState.status = 'stopped';
+    clockState.stoppedAt = payload.stoppedAt;
+    clockState.advisory = 'UNCONFIRMED, ADJUSTMENT PENDING';
+  } else if (action === 'confirm') {
+    clockState.status = 'confirmed';
+    clockState.confirmedTime = extra.confirmedTime;
+    clockState.advisory = '';
+  } else if (action === 'setAutoStart') {
+    clockState.autoStartTime = extra.autoStartTime;
+  }
+  
+  // Re-render and start ticking immediately
+  renderAdmin();
+  if (clockState.status === 'running') startAdminClockTick();
+  showToast('Clock ' + action + '...');
+  
+  // Sync to API in background
   try {
-    const res = await postJSON(payload);
-    if (res.status === 'ok') {
-      if (action === 'start') {
-        clockState.status = 'running';
-        clockState.stoppedAt = '';
-        clockState.confirmedTime = '';
-        clockState.advisory = '';
-      } else if (action === 'stop') {
-        clockState.status = 'stopped';
-        clockState.stoppedAt = payload.stoppedAt;
-        clockState.advisory = 'UNCONFIRMED, ADJUSTMENT PENDING';
-      } else if (action === 'confirm') {
-        clockState.status = 'confirmed';
-        clockState.confirmedTime = extra.confirmedTime;
-        clockState.advisory = '';
-      } else if (action === 'setAutoStart') {
-        clockState.autoStartTime = extra.autoStartTime;
-      }
-      showToast(res.message || 'Done');
-      renderAdmin();
-      if (clockState.status === 'running') startAdminClockTick();
-    }
+    await postJSON(payload);
   } catch (err) {
-    showToast('Error: ' + err.message);
+    showToast('Sync warning: ' + err.message, 'error');
   }
 }
 
