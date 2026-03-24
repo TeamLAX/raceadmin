@@ -226,6 +226,7 @@
     .clock-status-badge.running { background: var(--green); color: #fff; }
     .clock-status-badge.stopped { background: var(--red); color: #fff; }
     .clock-status-badge.confirmed { background: var(--accent); color: var(--bg); }
+    .clock-status-badge.waiting { background: rgba(255,255,255,0.2); color: #fff; }
 
     /* ── Runner List ── */
     .runner-list {
@@ -669,8 +670,8 @@ function renderClockPanel() {
   const isStopped = clockState.status === 'stopped';
   const isConfirmed = clockState.status === 'confirmed';
   const displayTime = getClockDisplayTime();
-  const statusClass = isRunning ? 'running' : isConfirmed ? 'confirmed' : 'stopped';
-  const statusLabel = isRunning ? 'Running' : isConfirmed ? 'Confirmed' : 'Stopped';
+  const statusClass = isRunning ? 'running' : isConfirmed ? 'confirmed' : isStopped && clockState.stoppedAt ? 'stopped' : 'waiting';
+  const statusLabel = isRunning ? 'Running' : isConfirmed ? 'Confirmed' : isStopped && clockState.stoppedAt ? 'Stopped' : 'Waiting for Start Time';
   
   return `
     <div class="clock-panel">
@@ -680,29 +681,26 @@ function renderClockPanel() {
       
       ${isStopped && clockState.advisory ? '<div class="clock-advisory">' + clockState.advisory + '</div>' : ''}
       
-      <div class="clock-buttons">
-        <button class="clock-btn start" ${isRunning ? 'disabled' : ''} 
-          onclick="doClockStart()">
-          ▶ Start
-        </button>
-        <button class="clock-btn stop" ${!isRunning ? 'disabled' : ''} 
-          onclick="doClockStop()">
-          ■ Stop
-        </button>
-      </div>
-      
       <div class="clock-section">
-        <label>Auto-Start Time (pre-programmed)</label>
+        <label>Race Start Date & Time</label>
         <div class="input-row">
           <input type="datetime-local" id="autoStartInput" 
             value="${clockState.autoStartTime ? clockState.autoStartTime.slice(0,16) : '2026-03-28T08:00'}" />
           <button class="clock-btn confirm" onclick="doClockSetAutoStart()">Set</button>
         </div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:4px">Clock starts automatically at this time</div>
       </div>
       
-      ${isStopped || isConfirmed ? `
+      <div class="clock-buttons">
+        <button class="clock-btn stop" ${!isRunning ? 'disabled' : ''} 
+          onclick="doClockStop()">
+          ■ Stop Clock
+        </button>
+      </div>
+      
+      ${(isStopped && clockState.stoppedAt) || isConfirmed ? `
       <div class="clock-section">
-        <label>Confirmed Final Time (HH:MM:SS)</label>
+        <label>Adjusted / Confirmed Final Time (HH:MM:SS)</label>
         <div class="input-row">
           <input type="text" id="confirmedTimeInput" placeholder="e.g. 13:42:18" 
             value="${clockState.confirmedTime || clockState.stoppedAt || ''}" />
@@ -712,22 +710,7 @@ function renderClockPanel() {
     </div>`;
 }
 
-function doClockStart() {
-  // If autoStartTime is in the future, use current time instead
-  var startTime = clockState.autoStartTime;
-  if (!startTime || new Date(startTime).getTime() > Date.now()) {
-    startTime = new Date().toISOString();
-    clockState.autoStartTime = startTime;
-  }
-  clockState.status = 'running';
-  clockState.stoppedAt = '';
-  clockState.confirmedTime = '';
-  clockState.advisory = '';
-  renderAdmin();
-  startAdminClockTick();
-  showToast('Clock started');
-  postJSON({ pin: storedPin, clockAction: 'start', autoStartTime: startTime }).catch(function(){});
-}
+// Clock starts automatically from the set date/time — no manual start button
 
 function doClockStop() {
   var time = getClockDisplayTime();
@@ -758,9 +741,14 @@ function doClockSetAutoStart() {
   var val = input ? input.value : '';
   if (!val) { showToast('Enter a date/time first', 'error'); return; }
   clockState.autoStartTime = val + ':00-07:00';
+  clockState.status = 'running';
+  clockState.stoppedAt = '';
+  clockState.confirmedTime = '';
+  clockState.advisory = '';
   renderAdmin();
-  showToast('Auto-start set to ' + val);
-  postJSON({ pin: storedPin, clockAction: 'setAutoStart', autoStartTime: clockState.autoStartTime }).catch(function(){});
+  startAdminClockTick();
+  showToast('Race start set — clock will auto-start at ' + val);
+  postJSON({ pin: storedPin, clockAction: 'start', autoStartTime: clockState.autoStartTime }).catch(function(){});
 }
 
 // ── Admin Panel ──
