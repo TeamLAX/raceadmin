@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B2V Ad Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400..900&family=Lexend+Deca:wght@100..900&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#1a1108; --surface:#2a1a0e; --border:rgba(255,255,255,0.08); --accent:#f59e0b; --green:#22c55e; --red:#ef4444; --text:#fff; --dim:rgba(255,255,255,0.5); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html,body { min-height:100vh; font-family:'Lexend Deca',sans-serif; background:var(--bg); color:var(--text); }
+    .hdr { background:linear-gradient(135deg,#3b2416 0%,#7a3a12 50%,#2f1b13 100%); padding:16px 20px; border-bottom:2px solid var(--accent); display:flex; align-items:center; justify-content:space-between; }
+    .hdr h1 { font-family:'Gabarito',sans-serif; font-size:1.2rem; font-weight:800; } .hdr h1 span { color:var(--accent); }
+    .hdr a { color:var(--dim); text-decoration:none; font-size:0.75rem; } .hdr a:hover { color:var(--accent); }
+    .pin-gate { max-width:320px; margin:80px auto; text-align:center; padding:0 20px; }
+    .pin-gate h2 { font-family:'Gabarito',sans-serif; font-size:1.1rem; margin-bottom:16px; color:var(--accent); }
+    .pin-input { width:100%; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:1.2rem; text-align:center; letter-spacing:0.3em; font-family:'Gabarito',sans-serif; outline:none; }
+    .pin-input:focus { border-color:var(--accent); }
+    .pin-btn { margin-top:12px; width:100%; padding:12px; background:var(--accent); color:var(--bg); border:none; border-radius:8px; font-family:'Gabarito',sans-serif; font-weight:700; font-size:1rem; cursor:pointer; }
+    .ctr { max-width:600px; margin:0 auto; padding:16px; }
+    .sc { background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:12px; overflow:hidden; }
+    .sc.has { border-color:rgba(245,158,11,0.2); }
+    .sh { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; cursor:pointer; }
+    .sh:hover { background:rgba(255,255,255,0.03); }
+    .sb { font-family:'Gabarito',sans-serif; font-weight:800; font-size:0.7rem; background:rgba(255,255,255,0.1); padding:3px 10px; border-radius:4px; }
+    .sb.on { background:var(--green); color:var(--bg); } .sb.off { color:var(--dim); }
+    .sp { display:flex; align-items:center; gap:10px; flex:1; margin-left:12px; min-width:0; }
+    .sp img { width:36px; height:36px; object-fit:contain; border-radius:4px; background:rgba(255,255,255,0.05); }
+    .sp-n { font-size:0.8rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ch { color:var(--dim); font-size:0.8rem; transition:transform 0.2s; }
+    .sc.open .ch { transform:rotate(90deg); }
+    .se { display:none; padding:0 16px 16px; } .sc.open .se { display:block; }
+    .f { margin-bottom:12px; }
+    .f label { display:block; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--dim); margin-bottom:4px; }
+    .f input,.f textarea { width:100%; padding:10px 12px; background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:0.85rem; font-family:'Lexend Deca',sans-serif; outline:none; }
+    .f textarea { resize:vertical; min-height:60px; }
+    .f input:focus,.f textarea:focus { border-color:var(--accent); }
+    .f input::placeholder,.f textarea::placeholder { color:rgba(255,255,255,0.2); }
+    .lp { margin-top:8px; max-width:100%; max-height:80px; border-radius:6px; background:rgba(255,255,255,0.05); padding:8px; display:none; object-fit:contain; } .lp.v { display:block; }
+    .fr { display:flex; align-items:center; gap:10px; }
+    .tl { font-size:0.75rem; color:var(--dim); }
+    .tg { position:relative; width:42px; height:22px; background:rgba(255,255,255,0.1); border-radius:11px; cursor:pointer; transition:background 0.2s; }
+    .tg.on { background:var(--green); }
+    .tg::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; background:#fff; border-radius:50%; transition:left 0.2s; }
+    .tg.on::after { left:22px; }
+    .br { display:flex; gap:8px; margin-top:14px; }
+    .btn { flex:1; padding:10px; border:none; border-radius:6px; font-family:'Gabarito',sans-serif; font-weight:700; font-size:0.8rem; cursor:pointer; }
+    .bs { background:var(--accent); color:var(--bg); } .bd { background:var(--red); color:#fff; }
+    .ab { width:100%; padding:14px; background:transparent; border:2px dashed rgba(255,255,255,0.1); border-radius:10px; color:var(--dim); font-family:'Gabarito',sans-serif; font-size:0.85rem; cursor:pointer; margin-bottom:12px; }
+    .ab:hover { border-color:var(--accent); color:var(--accent); }
+    .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface); border:1px solid var(--accent); color:var(--text); padding:10px 20px; border-radius:8px; font-size:0.8rem; transition:transform 0.3s; z-index:100; }
+    .toast.v { transform:translateX(-50%) translateY(0); } .toast.e { border-color:var(--red); }
+  </style>
+</head>
+<body>
+<div class="hdr"><h1>Ad <span>Manager</span></h1><a href="../">← Admin</a></div>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+var API='https://script.google.com/macros/s/AKfycbw3wLqaeIWBC9NNuvCmQDoLh8OtQZJ771jUtUFrq3YgiOPB1FPEEDkzopPTfOpfdcuK/exec';
+var PIN='',ads=[],openSlot=null;
+function toast(m,e){var t=document.getElementById('toast');t.textContent=m;t.className='toast v'+(e?' e':'');setTimeout(function(){t.className='toast'},3000)}
+function jp(p){return new Promise(function(r){var c='_am_'+Date.now()+Math.floor(Math.random()*1e3),u=API+'?callback='+c+'&pin='+encodeURIComponent(PIN);for(var k in p)u+='&'+k+'='+encodeURIComponent(p[k]);window[c]=function(d){delete window[c];var s=document.getElementById(c);if(s)s.remove();r(d)};var s=document.createElement('script');s.id=c;s.src=u;s.onerror=function(){delete window[c];s.remove();r({status:'error'})};document.head.appendChild(s);setTimeout(function(){if(window[c]){delete window[c];var x=document.getElementById(c);if(x)x.remove();r({status:'error',message:'timeout'})}},12e3)})}
+function pinGate(){document.getElementById('app').innerHTML='<div class="pin-gate"><h2>Enter Admin PIN</h2><input type="password" class="pin-input" id="pi" maxlength="10" placeholder="••••" onkeydown="if(event.key===\'Enter\')login()" autofocus /><button class="pin-btn" onclick="login()">Enter</button></div>'}
+async function login(){PIN=document.getElementById('pi').value;if(!PIN){toast('Enter PIN',1);return}toast('Loading...');var r=await jp({adAction:'list'});if(r&&r.status==='ok'){ads=r.ads||[];render()}else{toast('Failed',1);pinGate()}}
+function tog(s){openSlot=openSlot===s?null:s;render()}
+function render(){var n=Math.max(5,ads.length+1);if(n>20)n=20;var h='<div class="ctr">';for(var i=1;i<=n;i++){var a=ads.find(function(x){return parseInt(x.slot)===i}),has=a&&(a.name||a.logoUrl),act=a&&a.active,op=openSlot===i;h+='<div class="sc '+(op?'open':'')+' '+(has?'has':'')+'">';h+='<div class="sh" onclick="tog('+i+')">';h+='<span class="sb '+(act?'on':'off')+'">SLOT '+i+'</span>';h+='<div class="sp">';if(has&&a.logoUrl)h+='<img src="'+a.logoUrl+'" onerror="this.style.display=\'none\'" />';h+='<span class="sp-n">'+(has&&a.name?a.name:'Empty')+'</span></div>';h+='<span class="ch">▶</span></div>';h+='<div class="se">';h+='<div class="f"><label>Sponsor Name</label><input id="n-'+i+'" placeholder="Company Name" value="'+(a&&a.name?a.name:'')+'" /></div>';h+='<div class="f"><label>Logo URL</label><input id="l-'+i+'" placeholder="https://example.com/logo.png" value="'+(a&&a.logoUrl?a.logoUrl:'')+'" oninput="pv('+i+')" /><img class="lp '+(a&&a.logoUrl?'v':'')+'" id="p-'+i+'" src="'+(a&&a.logoUrl?a.logoUrl:'')+'" onerror="this.classList.remove(\'v\')" /></div>';h+='<div class="f"><label>Website URL</label><input id="u-'+i+'" placeholder="https://sponsor-website.com" value="'+(a&&a.linkUrl?a.linkUrl:'')+'" /></div>';h+='<div class="f"><label>Description</label><textarea id="d-'+i+'" placeholder="Brief description of business or service">'+(a&&a.description?a.description:'')+'</textarea></div>';h+='<div class="f"><div class="fr"><span class="tl">Active</span><div class="tg '+(act?'on':'')+'" id="t-'+i+'" onclick="this.classList.toggle(\'on\')"></div></div></div>';h+='<div class="br"><button class="btn bs" onclick="save('+i+')">Save</button><button class="btn bd" onclick="del('+i+')">Delete</button></div>';h+='</div></div>'}if(n<20)h+='<button class="ab" onclick="add()">+ Add Slot</button>';h+='</div>';document.getElementById('app').innerHTML=h}
+function pv(i){var u=document.getElementById('l-'+i).value,p=document.getElementById('p-'+i);if(u){p.src=u;p.classList.add('v')}else p.classList.remove('v')}
+async function save(i){var nm=document.getElementById('n-'+i).value,lg=document.getElementById('l-'+i).value,lk=document.getElementById('u-'+i).value,ds=document.getElementById('d-'+i).value,ac=document.getElementById('t-'+i).classList.contains('on');if(!nm&&!lg){toast('Enter name or logo',1);return}toast('Saving...');var r=await jp({adAction:'save',slot:i,name:nm,logoUrl:lg,linkUrl:lk,description:ds,active:ac?'true':'false'});if(r&&r.status==='ok'){toast('Saved!');var e=ads.find(function(x){return parseInt(x.slot)===i});if(e){e.name=nm;e.logoUrl=lg;e.linkUrl=lk;e.description=ds;e.active=ac}else ads.push({slot:String(i),name:nm,logoUrl:lg,linkUrl:lk,description:ds,active:ac});render()}else toast('Failed',1)}
+async function del(i){if(!confirm('Delete slot '+i+'?'))return;toast('Deleting...');var r=await jp({adAction:'delete',slot:i});if(r&&r.status==='ok'){toast('Deleted');ads=ads.filter(function(x){return parseInt(x.slot)!==i});render()}else toast('Failed',1)}
+function add(){var nx=ads.length?Math.max.apply(null,ads.map(function(x){return parseInt(x.slot)}))+1:1;openSlot=nx;render()}
+pinGate();
+</script>
+</body>
+</html>
