@@ -909,36 +909,131 @@ function handlePhoto(leg, input) {
   const file = input.files[0];
   if (!file) return;
   
-  const status = document.getElementById('photo-status-' + leg);
-  status.textContent = 'Processing...';
-  
-  // Resize image before converting to base64 (keep under 1MB for Apps Script)
   const reader = new FileReader();
   reader.onload = function(e) {
-    const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement('canvas');
-      const MAX = 400; // max dimension — keep small for sheet storage
-      let w = img.width, h = img.height;
-      if (w > h) { if (w > MAX) { h = h * MAX / w; w = MAX; } }
-      else { if (h > MAX) { w = w * MAX / h; h = MAX; } }
-      canvas.width = w;
-      canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-      
-      // Update preview
-      document.getElementById('preview-' + leg).innerHTML = 
-        '<img src="' + dataUrl + '" alt="Preview" />';
-      
-      // Store base64 for upload on save
-      document.getElementById('photodata-' + leg).value = dataUrl;
-      status.textContent = 'Ready to upload on save';
-    };
-    img.src = e.target.result;
+    openCropComposer(leg, e.target.result);
   };
   reader.readAsDataURL(file);
+}
+
+function openCropComposer(leg, imgSrc) {
+  // Create crop overlay
+  var overlay = document.createElement('div');
+  overlay.id = 'cropOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+  
+  overlay.innerHTML = `
+    <div style="font-family:Gabarito,sans-serif;font-size:1rem;font-weight:700;color:#f59e0b;margin-bottom:12px">Crop & Center Photo</div>
+    <div style="font-size:0.7rem;color:rgba(255,255,255,0.5);margin-bottom:12px">Drag to reposition • Pinch/scroll to zoom</div>
+    <div id="cropFrame" style="width:250px;height:250px;border-radius:12px;overflow:hidden;border:3px solid #f59e0b;position:relative;touch-action:none;cursor:grab;background:#000">
+      <img id="cropImg" src="${imgSrc}" style="position:absolute;user-select:none;-webkit-user-drag:none;pointer-events:none" />
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:14px;width:250px">
+      <span style="font-size:0.7rem;color:rgba(255,255,255,0.4)">−</span>
+      <input type="range" id="cropZoom" min="100" max="400" value="100" style="flex:1;accent-color:#f59e0b" />
+      <span style="font-size:0.7rem;color:rgba(255,255,255,0.4)">+</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button onclick="applyCrop(${leg})" style="padding:10px 24px;background:#f59e0b;color:#1a0f05;border:none;border-radius:6px;font-family:Gabarito,sans-serif;font-weight:700;cursor:pointer">Apply</button>
+      <button onclick="cancelCrop()" style="padding:10px 24px;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:6px;font-family:Gabarito,sans-serif;font-weight:700;cursor:pointer">Cancel</button>
+    </div>`;
+  
+  document.body.appendChild(overlay);
+  
+  var img = document.getElementById('cropImg');
+  var frame = document.getElementById('cropFrame');
+  var zoom = document.getElementById('cropZoom');
+  var scale = 1;
+  var offsetX = 0, offsetY = 0;
+  var dragging = false;
+  var startX, startY, startOX, startOY;
+  
+  img.onload = function() {
+    // Fit image to cover the frame
+    var frameW = 250, frameH = 250;
+    var ratio = Math.max(frameW / img.naturalWidth, frameH / img.naturalHeight);
+    scale = ratio;
+    zoom.min = Math.round(ratio * 100);
+    zoom.max = Math.round(ratio * 400);
+    zoom.value = Math.round(ratio * 100);
+    updateCropImg();
+  };
+  if (img.complete) img.onload();
+  
+  function updateCropImg() {
+    var w = img.naturalWidth * scale;
+    var h = img.naturalHeight * scale;
+    img.style.width = w + 'px';
+    img.style.height = h + 'px';
+    img.style.left = offsetX + 'px';
+    img.style.top = offsetY + 'px';
+  }
+  
+  zoom.addEventListener('input', function() {
+    var oldScale = scale;
+    scale = parseInt(zoom.value) / 100;
+    // Keep centered on zoom
+    var cx = 125 - offsetX;
+    var cy = 125 - offsetY;
+    offsetX = 125 - cx * (scale / oldScale);
+    offsetY = 125 - cy * (scale / oldScale);
+    clampOffset();
+    updateCropImg();
+  });
+  
+  function clampOffset() {
+    var w = img.naturalWidth * scale;
+    var h = img.naturalHeight * scale;
+    if (offsetX > 0) offsetX = 0;
+    if (offsetY > 0) offsetY = 0;
+    if (offsetX < 250 - w) offsetX = 250 - w;
+    if (offsetY < 250 - h) offsetY = 250 - h;
+  }
+  
+  frame.addEventListener('mousedown', function(e) { dragging = true; startX = e.clientX; startY = e.clientY; startOX = offsetX; startOY = offsetY; frame.style.cursor = 'grabbing'; });
+  window.addEventListener('mousemove', function(e) { if (!dragging) return; offsetX = startOX + (e.clientX - startX); offsetY = startOY + (e.clientY - startY); clampOffset(); updateCropImg(); });
+  window.addEventListener('mouseup', function() { dragging = false; frame.style.cursor = 'grab'; });
+  
+  frame.addEventListener('touchstart', function(e) { if (e.touches.length === 1) { dragging = true; startX = e.touches[0].clientX; startY = e.touches[0].clientY; startOX = offsetX; startOY = offsetY; } }, {passive:true});
+  frame.addEventListener('touchmove', function(e) { if (dragging && e.touches.length === 1) { offsetX = startOX + (e.touches[0].clientX - startX); offsetY = startOY + (e.touches[0].clientY - startY); clampOffset(); updateCropImg(); } }, {passive:true});
+  frame.addEventListener('touchend', function() { dragging = false; });
+  
+  frame.addEventListener('wheel', function(e) { e.preventDefault(); var oldScale = scale; scale *= e.deltaY < 0 ? 1.05 : 0.95; var minScale = parseInt(zoom.min) / 100; if (scale < minScale) scale = minScale; if (scale > parseInt(zoom.max) / 100) scale = parseInt(zoom.max) / 100; zoom.value = Math.round(scale * 100); var cx = 125 - offsetX; var cy = 125 - offsetY; offsetX = 125 - cx * (scale / oldScale); offsetY = 125 - cy * (scale / oldScale); clampOffset(); updateCropImg(); }, {passive:false});
+}
+
+function applyCrop(leg) {
+  var img = document.getElementById('cropImg');
+  var canvas = document.createElement('canvas');
+  canvas.width = 400;
+  canvas.height = 400;
+  var ctx = canvas.getContext('2d');
+  
+  var displayW = parseFloat(img.style.width);
+  var displayH = parseFloat(img.style.height);
+  var offX = parseFloat(img.style.left);
+  var offY = parseFloat(img.style.top);
+  
+  // Map from 250px frame to 400px output
+  var ratio = 400 / 250;
+  var sx = -offX * (img.naturalWidth / displayW);
+  var sy = -offY * (img.naturalHeight / displayH);
+  var sw = 250 * (img.naturalWidth / displayW);
+  var sh = 250 * (img.naturalHeight / displayH);
+  
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 400, 400);
+  
+  var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+  
+  document.getElementById('preview-' + leg).innerHTML = '<img src="' + dataUrl + '" alt="Preview" />';
+  document.getElementById('photodata-' + leg).value = dataUrl;
+  document.getElementById('photo-status-' + leg).textContent = 'Cropped — save to upload';
+  
+  cancelCrop();
+}
+
+function cancelCrop() {
+  var overlay = document.getElementById('cropOverlay');
+  if (overlay) overlay.remove();
 }
 
 async function saveRunner(leg) {
