@@ -502,6 +502,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbw3wLqaeIWBC9NNuvCmQDoL
 
 let PIN = '';
 let runners = [];
+let adminAlternates = [];
 let openCard = null;
 
 function showToast(msg, type = 'success', duration = 2500) {
@@ -555,6 +556,9 @@ async function submitPin() {
       runners = data.runners;
       if (data.clock) {
         clockState = { ...clockState, ...data.clock };
+      }
+      if (data.alternates) {
+        adminAlternates = data.alternates;
       }
       renderAdmin();
 
@@ -799,8 +803,23 @@ function renderAdmin() {
     ${renderClockPanel()}
     <div class="runner-list" id="runnerList">
       ${runners.map(r => renderRunnerCard(r)).join('')}
+    </div>
+    <div class="alternates-section">
+      <div class="clock-panel" style="margin-top:16px">
+        <div class="clock-panel-title">Alternates</div>
+        <div id="altList">${renderAlternatesList()}</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          <input type="text" id="altName" placeholder="Full Name" class="field-input" style="width:100%;padding:10px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;font-size:0.85rem" />
+          <div style="display:flex;gap:8px">
+            <input type="number" id="altYears" placeholder="Years" min="0" max="50" style="flex:1;padding:10px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;font-size:0.85rem" />
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:rgba(255,255,255,0.6);padding:0 8px;background:rgba(0,0,0,0.2);border-radius:6px;cursor:pointer">
+              <input type="checkbox" id="altCiv" /> CIV
+            </label>
+            <button class="clock-btn confirm" onclick="saveAlternate()">Add</button>
+          </div>
+        </div>
+      </div>
     </div>`;
-  
 
 }
 
@@ -1138,6 +1157,92 @@ async function setActive(leg) {
     
   } catch (err) {
     showToast('Failed to set active — ' + err.message, 'error');
+  }
+}
+
+function renderAlternatesList() {
+  if (!adminAlternates.length) return '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);text-align:center;padding:8px">No alternates added</div>';
+  return adminAlternates.map(function(a, i) {
+    var typeLabel = a.type === 'CIV' ? 'CIV' : 'SWN';
+    var typeFull = a.type === 'CIV' ? 'Civilian' : 'Sworn';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(0,0,0,0.2);border-radius:6px;margin-bottom:4px">' +
+      '<div style="flex:1">' +
+        '<div style="font-size:0.85rem;font-weight:600">' + a.name + '</div>' +
+        '<div style="font-size:0.6rem;color:rgba(255,255,255,0.4)">' + (a.years ? a.years + ' yrs • ' : '') + typeFull + '</div>' +
+      '</div>' +
+      '<button onclick="deleteAlternate(' + (i+1) + ')" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:0.6rem;cursor:pointer;font-family:Gabarito,sans-serif;font-weight:700">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function saveClockViaJSONPAlt(params) {
+  return new Promise(function(resolve) {
+    var cbName = '_alt_' + Date.now();
+    var url = API_URL + '?callback=' + cbName + '&pin=' + encodeURIComponent(PIN);
+    for (var k in params) {
+      if (params[k] !== undefined && params[k] !== null) url += '&' + k + '=' + encodeURIComponent(params[k]);
+    }
+    window[cbName] = function(data) {
+      delete window[cbName];
+      var s = document.getElementById(cbName);
+      if (s) s.remove();
+      resolve(data);
+    };
+    var script = document.createElement('script');
+    script.id = cbName;
+    script.src = url;
+    script.onerror = function() {
+      delete window[cbName];
+      script.remove();
+      resolve({ status: 'error' });
+    };
+    document.head.appendChild(script);
+    setTimeout(function() {
+      if (window[cbName]) {
+        delete window[cbName];
+        var s = document.getElementById(cbName);
+        if (s) s.remove();
+        resolve({ status: 'error', message: 'timeout' });
+      }
+    }, 12000);
+  });
+}
+
+async function saveAlternate() {
+  var name = document.getElementById('altName').value.trim();
+  var years = document.getElementById('altYears').value.trim();
+  var isCiv = document.getElementById('altCiv').checked;
+  if (!name) { showToast('Enter a name', 'error'); return; }
+  showToast('Saving alternate...');
+  var res = await saveClockViaJSONPAlt({
+    altAction: 'save',
+    row: 0,
+    name: name,
+    years: years,
+    type: isCiv ? 'CIV' : 'SWN'
+  });
+  if (res && res.status === 'ok') {
+    adminAlternates.push({ name: name, years: years, type: isCiv ? 'CIV' : 'SWN' });
+    showToast('Alternate added');
+    document.getElementById('altName').value = '';
+    document.getElementById('altYears').value = '';
+    document.getElementById('altCiv').checked = false;
+    document.getElementById('altList').innerHTML = renderAlternatesList();
+  } else {
+    showToast('Save failed', 'error');
+  }
+}
+
+async function deleteAlternate(row) {
+  if (!confirm('Delete this alternate?')) return;
+  showToast('Deleting...');
+  var res = await saveClockViaJSONPAlt({ altAction: 'delete', row: row });
+  if (res && res.status === 'ok') {
+    adminAlternates.splice(row - 1, 1);
+    showToast('Deleted');
+    document.getElementById('altList').innerHTML = renderAlternatesList();
+  } else {
+    showToast('Delete failed', 'error');
   }
 }
 
