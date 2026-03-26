@@ -899,6 +899,11 @@ function renderRunnerCard(r) {
           <span>Halfway Point Reached</span>
         </label>
       </div>
+      <div class="field">
+        <label>Runner's Story (max 395 characters)</label>
+        <textarea id="message-${r.leg}" maxlength="395" placeholder="Optional — runner's personal message or story" style="width:100%;min-height:70px;padding:10px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;font-size:0.8rem;font-family:'Lexend Deca',sans-serif;resize:vertical">${esc(r.message || '')}</textarea>
+        <div style="font-size:0.55rem;color:rgba(255,255,255,0.3);margin-top:2px;text-align:right" id="msgCount-${r.leg}">${(r.message || '').length}/395</div>
+      </div>
       <div class="actions-row">
         <button class="btn-save" id="save-${r.leg}" onclick="saveRunner(${r.leg})">Save Leg ${r.leg}</button>
         <button class="btn-set-active ${isActive ? 'is-active' : ''}" onclick="setActive(${r.leg})">
@@ -1072,7 +1077,8 @@ async function saveRunner(leg) {
     time:       document.getElementById('time-' + leg).value,
     start:      document.getElementById('start-' + leg).value,
     years:      document.getElementById('years-' + leg).value,
-    halfway:    document.getElementById('halfway-' + leg).checked
+    halfway:    document.getElementById('halfway-' + leg).checked,
+    message:    document.getElementById('message-' + leg).value
   };
   
   // Include photo data if a new photo was selected
