@@ -1144,6 +1144,19 @@ function calcRunTime(leg) {
     timeEl.value = '--:--';
     startEl.value = courseTimeToWallClock(prevSec);
   }
+  
+  // Auto-populate NEXT runner's start time (this runner's finish = next runner's start)
+  if (currentSec !== null && leg < 20) {
+    var nextStartEl = document.getElementById('start-' + (leg + 1));
+    if (nextStartEl) {
+      nextStartEl.value = courseTimeToWallClock(currentSec);
+    }
+    // If the next runner already has a course time, recalc their run time too
+    var nextCourseEl = document.getElementById('coursetime-' + (leg + 1));
+    if (nextCourseEl && nextCourseEl.value) {
+      calcRunTime(leg + 1);
+    }
+  }
 }
 
 async function saveRunner(leg) {
