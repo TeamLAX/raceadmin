@@ -1094,7 +1094,6 @@ function formatTime(totalSec) {
 // Converts course clock seconds to wall clock time (race start + elapsed)
 function courseTimeToWallClock(courseSec) {
   if (courseSec === null) return '--:-- PDT';
-  // Use the clock's autoStartTime
   var startStr = clockState.autoStartTime || '2026-03-28T15:00:00-07:00';
   var startMs = new Date(startStr).getTime();
   if (isNaN(startMs)) return '--:-- PDT';
@@ -1223,6 +1222,42 @@ async function saveRunner(leg) {
     btn.textContent = 'Saved ✓';
     btn.classList.add('saved');
     showToast('Stage ' + leg + ' saved');
+    
+    // ── Auto-advance: if course time was entered, advance "Who's Running Now" to next runner ──
+    if (payload.coursetime && leg < 20) {
+      var nextLeg = leg + 1;
+      var nextStart = document.getElementById('start-' + nextLeg);
+      var nextStartValue = nextStart ? nextStart.value : '';
+      
+      // Save the next runner's start time to the sheet
+      if (nextStartValue) {
+        var nextRunner = runners.find(r => r.leg === nextLeg);
+        if (nextRunner) nextRunner.start = nextStartValue;
+        
+        try {
+          await postJSON({
+            pin: PIN,
+            leg: nextLeg,
+            start: nextStartValue
+          });
+        } catch(e) { /* silent — non-critical */ }
+      }
+      
+      // Advance active runner to next leg
+      try {
+        await postJSON({
+          pin: PIN,
+          leg: nextLeg,
+          setActive: true
+        });
+        runners.forEach(r => r.active = false);
+        var next = runners.find(r => r.leg === nextLeg);
+        if (next) next.active = true;
+        showToast('→ Stage ' + nextLeg + ' is now running');
+      } catch(e) {
+        showToast('Saved but failed to advance runner', 'error');
+      }
+    }
     
     setTimeout(() => {
       btn.disabled = false;
