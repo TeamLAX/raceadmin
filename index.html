@@ -879,12 +879,19 @@ function renderRunnerCard(r) {
       </div>
       <div class="field-row">
         <div class="field">
-          <label>Run Time</label>
-          <input type="text" id="time-${r.leg}" value="${esc(r.time)}" placeholder="e.g. 42:15" />
+          <label>Course Clock at Stage Crossing (HH:MM:SS)</label>
+          <input type="text" id="coursetime-${r.leg}" value="${esc(r.coursetime || '')}" placeholder="e.g. 2:34:10" oninput="calcRunTime(${r.leg})" />
+          <div style="font-size:0.6rem;color:var(--text-dim);margin-top:3px">Enter overall race clock when runner crosses the stage line</div>
         </div>
         <div class="field">
-          <label>Start Time</label>
-          <input type="text" id="start-${r.leg}" value="${esc(r.start)}" placeholder="e.g. 3:45 PM PDT" />
+          <label>Run Time <span style="font-size:0.6rem;color:var(--accent)">(auto-calculated)</span></label>
+          <input type="text" id="time-${r.leg}" value="${esc(r.time)}" placeholder="—" readonly style="opacity:0.7;cursor:default" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Start Time <span style="font-size:0.6rem;color:var(--text-dim)">(auto from course clock)</span></label>
+          <input type="text" id="start-${r.leg}" value="${esc(r.start)}" readonly style="opacity:0.7;cursor:default" />
         </div>
       </div>
       <div class="field-row">
@@ -1060,6 +1067,85 @@ function cancelCrop() {
   if (overlay) overlay.remove();
 }
 
+// ── Course Clock → Run Time Calculator ──
+// Parses "H:MM:SS" or "HH:MM:SS" into total seconds
+function parseCourseTime(str) {
+  if (!str || str === '--:--') return null;
+  str = str.trim();
+  var parts = str.split(':');
+  if (parts.length === 3) {
+    return (parseInt(parts[0])||0)*3600 + (parseInt(parts[1])||0)*60 + (parseInt(parts[2])||0);
+  }
+  if (parts.length === 2) {
+    return (parseInt(parts[0])||0)*3600 + (parseInt(parts[1])||0)*60;
+  }
+  return null;
+}
+
+// Formats seconds into "H:MM:SS"
+function formatTime(totalSec) {
+  if (totalSec === null || totalSec < 0) return '--:--';
+  var h = Math.floor(totalSec / 3600);
+  var m = Math.floor((totalSec % 3600) / 60);
+  var s = totalSec % 60;
+  return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+// Converts course clock seconds to wall clock time (race start + elapsed)
+function courseTimeToWallClock(courseSec) {
+  if (courseSec === null) return '--:-- PDT';
+  // Use the clock's autoStartTime
+  var startStr = clockState.autoStartTime || '2026-03-28T15:00:00-07:00';
+  var startMs = new Date(startStr).getTime();
+  if (isNaN(startMs)) return '--:-- PDT';
+  var wallMs = startMs + (courseSec * 1000);
+  var d = new Date(wallMs);
+  var hr = d.getHours();
+  var mn = d.getMinutes();
+  var ampm = hr >= 12 ? 'PM' : 'AM';
+  if (hr > 12) hr -= 12;
+  if (hr === 0) hr = 12;
+  return hr + ':' + String(mn).padStart(2,'0') + ' ' + ampm + ' PDT';
+}
+
+// Called on input — calculates this runner's leg time from course clock difference
+function calcRunTime(leg) {
+  var courseTimeStr = document.getElementById('coursetime-' + leg).value;
+  var currentSec = parseCourseTime(courseTimeStr);
+  
+  // Find the previous leg's course time
+  var prevSec = null;
+  if (leg > 1) {
+    var prevEl = document.getElementById('coursetime-' + (leg - 1));
+    if (prevEl && prevEl.value) {
+      prevSec = parseCourseTime(prevEl.value);
+    } else {
+      // Check stored data
+      var prevRunner = runners.find(r => r.leg === (leg - 1));
+      if (prevRunner && prevRunner.coursetime) {
+        prevSec = parseCourseTime(prevRunner.coursetime);
+      }
+    }
+  } else {
+    // Leg 1 — previous is 0:00:00 (race start)
+    prevSec = 0;
+  }
+  
+  // Calculate individual run time
+  var timeEl = document.getElementById('time-' + leg);
+  var startEl = document.getElementById('start-' + leg);
+  
+  if (currentSec !== null && prevSec !== null) {
+    var runSec = currentSec - prevSec;
+    timeEl.value = formatTime(runSec);
+    // Set start time as wall clock when this runner started (= previous crossing time)
+    startEl.value = courseTimeToWallClock(prevSec);
+  } else if (currentSec !== null) {
+    timeEl.value = '--:--';
+    startEl.value = courseTimeToWallClock(prevSec);
+  }
+}
+
 async function saveRunner(leg) {
   const btn = document.getElementById('save-' + leg);
   btn.disabled = true;
@@ -1076,6 +1162,7 @@ async function saveRunner(leg) {
     difficulty: parseInt(document.getElementById('difficulty-' + leg).value) || 5,
     time:       document.getElementById('time-' + leg).value,
     start:      document.getElementById('start-' + leg).value,
+    coursetime: document.getElementById('coursetime-' + leg).value,
     years:      document.getElementById('years-' + leg).value,
     halfway:    document.getElementById('halfway-' + leg).checked,
     message:    document.getElementById('message-' + leg).value
@@ -1112,6 +1199,7 @@ async function saveRunner(leg) {
       runner.difficulty = payload.difficulty;
       runner.time = payload.time;
       runner.start = payload.start;
+      runner.coursetime = payload.coursetime;
       runner.years = payload.years;
     }
     
